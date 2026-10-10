@@ -3,7 +3,7 @@
 Status: Draft  
 Scope: P0  
 Owner: Tech Lead  
-Depends on: Frozen P0 Scope, Frozen P0 Business Rules, `00-DOMAIN_VOCABULARY.md`
+Depends on: Frozen P0 Scope, Frozen P0 Business Rules v2, `00-DOMAIN_VOCABULARY.md`
 
 ## Purpose
 
@@ -18,8 +18,6 @@ Detailed database schemas, API endpoints, authorization rules, DTOs, and realtim
 # 1. Repository Structure
 
 The project uses a monorepo.
-
-The main structure is:
 
 ```text
 transcendance/
@@ -52,7 +50,7 @@ The P0 technical baseline is:
 - Realtime: Socket.IO integrated into the NestJS backend
 - Local/container orchestration: Docker Compose
 - Package manager: npm
-- Node.js baseline: version defined by the root `.nvmrc`
+- Node.js baseline: version defined by root `.nvmrc`
 
 The current bootstrap uses Node.js `24.21.0`.
 
@@ -62,8 +60,6 @@ Technology changes that affect multiple Vertical Slices require shared review be
 
 # 3. High-Level System Architecture
 
-The P0 system follows this structure:
-
 ```text
 Browser
    |
@@ -71,7 +67,7 @@ Browser
 React Frontend
    |
    | REST
-   | WebSocket / Socket.IO
+   | Socket.IO
    v
 NestJS Backend
    |
@@ -80,7 +76,7 @@ NestJS Backend
 PostgreSQL
 ```
 
-The NestJS backend is the central authority between the frontend and the database.
+The NestJS backend is the central authority between the frontend and database.
 
 The frontend must not access PostgreSQL or Prisma directly.
 
@@ -96,8 +92,14 @@ The frontend is responsible for:
 - collecting user input;
 - calling backend REST APIs;
 - receiving realtime updates;
-- displaying loading, success, and error states;
-- keeping local UI state synchronized with backend state.
+- displaying loading, success, conflict, and error states;
+- keeping local UI state synchronized with backend state;
+- displaying Activity recent-editor information;
+- organizing user-facing text through the shared i18n / translation-key mechanism.
+
+P0 is i18n-ready, not fully multilingual.
+
+P0 may ship only the default language, but new user-facing component text must not be scattered as uncontrolled hard-coded strings when it belongs in the shared translation system.
 
 The frontend must not be treated as a security boundary.
 
@@ -111,15 +113,18 @@ The backend is responsible for:
 
 - authentication;
 - authorization;
+- Membership Role enforcement;
 - business-rule enforcement;
 - input validation;
 - database access;
 - REST APIs;
+- Proposal majority/adoption validation;
 - realtime broadcasting;
-- conflict handling;
+- optimistic-concurrency conflict handling;
+- setting system-controlled identity/time metadata such as Activity last editor;
 - returning consistent errors to clients.
 
-All operations that modify protected Trip data must be validated by the backend.
+All protected Trip operations must be validated by the backend.
 
 ---
 
@@ -131,7 +136,7 @@ Prisma is the ORM used by the NestJS backend to access PostgreSQL.
 
 The frontend never accesses the database directly.
 
-Detailed entities, constraints, relations, deletion behaviour, and migrations are defined in the Domain Model and Database Contract.
+Detailed entities, constraints, relations, deletion behaviour, migrations, and transactional invariants are defined in the Domain Model and Database Contract.
 
 ---
 
@@ -139,19 +144,30 @@ Detailed entities, constraints, relations, deletion behaviour, and migrations ar
 
 The persisted backend/database state is the authoritative application state.
 
-Frontend state and WebSocket events are not authoritative sources of truth.
+Frontend state and Socket.IO events are not authoritative sources of truth.
 
-A realtime event informs clients that a change has occurred, but the persisted backend state remains the final reference.
+Realtime events inform connected clients about committed changes.
 
-After reconnecting or recovering from an uncertain client state, the client must be able to obtain the latest authoritative state from the backend.
+After reconnecting or recovering from uncertain client state, the client must be able to obtain the latest authoritative state from the backend.
 
 ---
 
 # 6. REST Responsibility
 
-REST is the primary command and query interface between the frontend and backend.
+REST is the primary command and query interface between frontend and backend.
 
-P0 operations such as creating or modifying Trips, Invitations, Activities, Proposals, and Votes are performed through backend REST APIs unless a later contract explicitly defines otherwise.
+P0 commands include, among others:
+
+- register / login / logout;
+- create and delete Trip;
+- create/respond to Invitation;
+- leave Trip;
+- Activity CRUD;
+- Proposal create/view;
+- Vote create/change;
+- Proposal Adoption.
+
+P0 has no REST command for editing Trip base information because Trip data is immutable after creation.
 
 All P0 REST endpoints use the global prefix:
 
@@ -166,9 +182,9 @@ Examples:
 /api/trips
 ```
 
-Individual controllers should define their resource path without repeating the global `api` prefix.
+Individual controllers define their resource path without repeating the global `api` prefix.
 
-Detailed endpoint names, request bodies, response bodies, status codes, and error formats are defined in the REST API Contract.
+Detailed paths, DTOs, responses, status codes, and common errors belong to the REST API Contract.
 
 ---
 
@@ -180,41 +196,43 @@ Realtime support runs inside the same NestJS backend application.
 
 P0 does not introduce a separate realtime microservice.
 
-The basic mutation flow is:
+The mutation flow is:
 
 ```text
 User action
     ↓
 REST request
     ↓
-Backend validation
+Backend auth / business / concurrency validation
     ↓
-Database update
+Database transaction commits
     ↓
 Realtime broadcast
     ↓
-Other connected Trip members update their UI
+Other connected Trip participants update their UI
 ```
 
-For P0, realtime broadcasting is required for the collaborative changes defined by the P0 Business Rules, including:
+P0 realtime broadcasting covers:
 
 - Activity creation;
-- Activity update;
+- Activity update, including latest editor/time;
 - Activity deletion;
 - Proposal creation;
-- Vote changes.
+- Vote changes;
+- Proposal Adoption;
+- Proposal returning to an adoptable state when its linked Activity is deleted.
 
-WebSocket events are used for realtime notification and synchronization.
+Socket.IO events are synchronization notifications.
 
-They are not a second independent write path to the database.
+They are not a second independent database write path.
 
-Detailed room rules, event names, payloads, authentication, and reconnect behaviour are defined in the Realtime Contract.
+Detailed Trip-room rules, event names, payloads, authentication, and reconnect behaviour belong to the Realtime Contract.
 
 ---
 
 # 8. Backend Module Boundary Principle
 
-NestJS modules should be organized around business capabilities rather than creating one module for every database table.
+NestJS modules should be organized around business capabilities rather than one module per database table.
 
 Expected P0 business areas include:
 
@@ -223,14 +241,14 @@ Expected P0 business areas include:
 - trips and membership;
 - invitations;
 - itinerary and activities;
-- proposals and votes;
+- proposals, votes, and adoption;
 - realtime;
 - shared/common infrastructure.
 
 For example:
 
-- `ItineraryDay` and `Activity` may belong to the same itinerary business area.
-- `Proposal` and `Vote` may belong to the same proposal business area.
+- `ItineraryDay` and `Activity` may belong to the same itinerary capability.
+- `Proposal`, `Vote`, and Adoption logic may belong to the same proposal capability.
 
 The exact folder structure may evolve, but different Vertical Slices must not create competing modules for the same business responsibility.
 
@@ -238,7 +256,7 @@ The exact folder structure may evolve, but different Vertical Slices must not cr
 
 # 9. P0 Runtime Services
 
-The target P0 Docker Compose architecture contains three primary services:
+The target P0 Docker Compose architecture contains:
 
 ```text
 frontend
@@ -246,7 +264,7 @@ backend
 postgres
 ```
 
-P0 does not require additional infrastructure such as:
+P0 does not require:
 
 - Redis;
 - message queues;
@@ -254,21 +272,19 @@ P0 does not require additional infrastructure such as:
 - background worker services;
 - microservices.
 
-New infrastructure must have a concrete P0 requirement before being added.
+New infrastructure requires a concrete P0 need and team review.
 
 ---
 
 # 10. Port Baseline
 
-The current development baseline is:
-
 ```text
-Frontend: 5173
-Backend: 3000
+Frontend:   5173
+Backend:    3000
 PostgreSQL: 5432
 ```
 
-Ports may be exposed differently by Docker or deployment configuration, but internal service configuration must remain consistent and documented.
+Docker may expose different host mappings when documented, but internal service configuration must remain consistent.
 
 ---
 
@@ -276,7 +292,7 @@ Ports may be exposed differently by Docker or deployment configuration, but inte
 
 The browser-facing REST path is `/api`.
 
-The frontend should depend on the API path/configuration rather than treating a hard-coded localhost address as part of the application contract.
+The frontend should depend on the API path/configuration rather than a hard-coded localhost address.
 
 ## Current implementation note
 
@@ -288,11 +304,11 @@ The current bootstrap Vite development proxy forwards:
 
 This is a temporary local-development implementation.
 
-`127.0.0.1:3000` is not part of the frozen architecture contract.
+`127.0.0.1:3000` is not part of the frozen architecture boundary.
 
-When Docker Compose is introduced, backend routing must be updated to use a Docker-compatible service/environment configuration.
+When Docker Compose is introduced, routing must use Docker-compatible service/environment configuration.
 
-The `/api` browser-facing contract remains unchanged.
+The browser-facing `/api` contract remains unchanged.
 
 ---
 
@@ -300,9 +316,16 @@ The `/api` browser-facing contract remains unchanged.
 
 The backend must validate all external input.
 
-Frontend validation may improve user experience but cannot replace backend validation.
+Frontend validation improves user experience but cannot replace backend validation.
 
-The exact validation library, DTO structure, and validation rules are defined later in the REST API and Shared Types contracts.
+This includes, for example:
+
+- Trip creation validation;
+- Activity required fields and time validity;
+- Proposal adoption eligibility;
+- resource-to-Trip relationship checks.
+
+Exact validation libraries and DTO rules belong to later contracts.
 
 ---
 
@@ -310,25 +333,31 @@ The exact validation library, DTO structure, and validation rules are defined la
 
 Authentication and authorization are owned by the NestJS backend.
 
-The frontend may use authentication state to control the UI, but the backend must independently verify access for protected operations.
+The frontend may use authenticated state and Membership Role to shape UI, but the backend must independently verify every protected operation.
 
-The detailed authentication mechanism and Owner / Member authorization rules are defined in `03-AUTH_CONTRACT.md`.
+P0 Owner authority comes from the current TripMembership role, not the historical Trip Creator relation.
+
+Detailed rules are defined in `03-AUTH_CONTRACT.md`.
 
 ---
 
 # 14. Persistence and Realtime Boundary
 
-A successful collaborative mutation follows this order:
+A successful collaborative mutation follows:
 
 ```text
 Validate
-→ Persist
+→ Persist / Commit
 → Broadcast
 ```
 
-A realtime event must not be broadcast as a successful change before the corresponding persistent update succeeds.
+A realtime success event must not be broadcast before the corresponding database transaction succeeds.
 
-If persistence fails, the system must not announce the change to other clients as completed.
+This rule is especially important for:
+
+- concurrent Activity updates;
+- Proposal Adoption;
+- deletion of a linked Activity that reopens a Proposal.
 
 ---
 
@@ -336,7 +365,7 @@ If persistence fails, the system must not announce the change to other clients a
 
 A Vertical Slice may implement its own frontend components, backend logic, database access, and tests.
 
-However, every Vertical Slice must follow the shared contracts for:
+Every Vertical Slice must still follow the shared contracts for:
 
 - domain vocabulary;
 - architecture;
@@ -345,9 +374,10 @@ However, every Vertical Slice must follow the shared contracts for:
 - REST conventions;
 - realtime conventions;
 - shared types;
-- environment and workflow.
+- environment/workflow;
+- shared i18n-ready frontend rules.
 
-Implementation details that do not affect other slices remain owned by the developer responsible for that slice.
+Implementation details that do not affect another slice remain owned by the developer responsible for that slice.
 
 ---
 
@@ -361,11 +391,13 @@ P0 does not introduce:
 - event sourcing;
 - separate realtime infrastructure;
 - direct frontend database access;
-- offline-first synchronization;
+- offline-first collaborative synchronization;
 - distributed caching;
-- complex background job architecture.
+- complex background-job architecture;
+- full three-language translation coverage;
+- a language switcher as a P0 requirement.
 
-These may only be considered later if a future product requirement justifies them.
+These may be considered only through future scope decisions.
 
 ---
 
@@ -374,17 +406,20 @@ These may only be considered later if a future product requirement justifies the
 This Architecture Contract intentionally does not define:
 
 - exact database tables and fields;
-- primary and foreign keys;
-- Prisma relations;
+- PK/FK implementation;
+- exact OWNER uniqueness mechanism;
+- Proposal/Activity relation implementation;
 - authentication token/cookie details;
-- complete REST endpoint lists;
-- REST request and response schemas;
-- WebSocket event names and payloads;
-- Activity concurrency implementation;
+- complete REST endpoints;
+- REST request/response schemas;
+- Socket.IO event names and payloads;
+- Activity OCC implementation;
+- Proposal Adoption transaction implementation;
 - shared DTO implementation;
-- frontend state-management libraries.
+- frontend state-management library;
+- exact i18n library choice.
 
-These decisions belong to the later shared contracts.
+These decisions belong to later contracts or the relevant shared implementation issue.
 
 ---
 
@@ -392,17 +427,18 @@ These decisions belong to the later shared contracts.
 
 Before freezing this document, the team should confirm:
 
-- [ ] Monorepo structure is accepted.
 - [ ] React + TypeScript + Vite remains the frontend baseline.
 - [ ] NestJS + TypeScript remains the backend baseline.
 - [ ] PostgreSQL + Prisma is accepted for persistence.
-- [ ] Socket.IO inside the NestJS backend is accepted for realtime.
-- [ ] REST is the primary write/query interface.
-- [ ] WebSocket is used for realtime notification, not as a separate write system.
-- [ ] PostgreSQL/backend persisted state is the source of truth.
+- [ ] Socket.IO runs inside the NestJS backend.
+- [ ] REST is the primary command/query interface.
+- [ ] Socket.IO is synchronization, not a second write system.
+- [ ] Backend/database persisted state is the source of truth.
 - [ ] `/api` is the global REST prefix.
-- [ ] Frontend does not directly access the database.
-- [ ] Backend owns validation, authentication, authorization, and business-rule enforcement.
+- [ ] Trip base information has no P0 edit command.
+- [ ] Backend owns Membership Role authorization.
+- [ ] Proposal Adoption is validated and persisted before broadcast.
+- [ ] Activity updates broadcast recent-editor information.
+- [ ] P0 frontend uses a shared i18n-ready translation-key mechanism.
 - [ ] P0 Docker architecture uses `frontend + backend + postgres`.
-- [ ] The current `127.0.0.1:3000` Vite proxy is understood as temporary.
-- [ ] No unnecessary infrastructure has been introduced.
+- [ ] The current localhost Vite proxy is transitional.
