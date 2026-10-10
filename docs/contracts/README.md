@@ -2,7 +2,8 @@
 
 Status: Draft  
 Scope: P0  
-Owner: Tech Lead
+Owner: Tech Lead  
+Product baseline: Frozen P0 Scope / PRD / Business Rules v2 — 2026-10-09
 
 ## Purpose
 
@@ -12,23 +13,32 @@ These contracts define the technical rules that multiple team members must follo
 
 They are based on the frozen P0 Scope and P0 Business Rules.
 
+A frozen product baseline does not automatically freeze the technical contracts. Each technical contract still follows its own review lifecycle.
+
 ## Contract documents
+
+0. `00-DOMAIN_VOCABULARY.md`
+   - Canonical P0 terminology
+   - Shared meanings for User, Trip, Membership, Activity, Proposal, Vote, Adoption, and related concepts
 
 1. `01-ARCHITECTURE.md`
    - Overall system structure
    - Technology stack
    - Frontend / backend / database responsibilities
    - Main communication paths
+   - P0 i18n-ready frontend boundary
 
 2. `02-DOMAIN_MODEL.md`
-   - Core P0 domain entities
+   - Core P0 domain objects
    - Entity meanings
-   - Relationships between entities
+   - Relationships and lifecycle rules
+   - Membership roles, Proposal adoption, and linked Activity rules
 
 3. `03-AUTH_CONTRACT.md`
    - Authentication approach
    - Authorization rules
-   - Owner / Member access boundaries
+   - OWNER / MEMBER access boundaries
+   - Proposal voting and adoption authorization
 
 4. `04-DATABASE_CONTRACT.md`
    - Database conventions
@@ -36,7 +46,7 @@ They are based on the frozen P0 Scope and P0 Business Rules.
    - Unique constraints
    - Deletion rules
    - Prisma migration rules
-   - Concurrent update requirements
+   - Concurrent update and adoption atomicity requirements
 
 5. `05-REST_API_CONTRACT.md`
    - REST API naming conventions
@@ -46,10 +56,11 @@ They are based on the frozen P0 Scope and P0 Business Rules.
    - P0 shared API contracts
 
 6. `06-REALTIME_CONTRACT.md`
-   - WebSocket connection rules
+   - Socket.IO connection rules
    - Trip room strategy
    - Event naming conventions
    - Reconnection and synchronization rules
+   - Proposal adoption synchronization
 
 7. `07-SHARED_TYPES.md`
    - Shared enums
@@ -62,13 +73,17 @@ They are based on the frozen P0 Scope and P0 Business Rules.
    - Ports
    - Environment variables
    - CI baseline
-   - Contract and database change workflow
+   - Prisma migration workflow
+   - i18n-ready frontend workflow
+   - Contract change workflow
 
 ## Contract lifecycle
 
 Each contract follows:
 
+```text
 Draft → Team Review → Frozen
+```
 
 ### Draft
 
@@ -90,11 +105,23 @@ A change that affects multiple Vertical Slices must be discussed and the shared 
 
 For P0:
 
-1. P0 Scope defines what P0 includes.
-2. P0 Business Rules define how the product behaves.
-3. These Technical Contracts define how the shared technical system supports those rules.
+1. Frozen P0 Scope defines what P0 includes.
+2. Frozen P0 Business Rules define how the product behaves.
+3. `00-DOMAIN_VOCABULARY.md` defines the shared language used by the team.
+4. These Technical Contracts define how the shared technical system supports those rules.
+5. Feature implementations must follow the frozen technical contracts.
 
-Feature implementations must follow the frozen contracts.
+If a lower layer conflicts with a higher layer, the higher layer wins until the conflict is explicitly reviewed.
+
+```text
+P0 Scope / Business Rules
+        ↓
+Domain Vocabulary / Domain Model
+        ↓
+Technical Contracts
+        ↓
+ERD / Prisma / REST / Realtime implementation
+```
 
 ## Scope rule
 
