@@ -3,21 +3,9 @@
 Status: Draft  
 Scope: P0  
 Owner: Tech Lead  
-Depends on: Frozen P0 Scope, Frozen P0 Business Rules, `00-DOMAIN_VOCABULARY.md`, `01-ARCHITECTURE.md`
+Depends on: Frozen P0 Scope, Frozen P0 Business Rules v2, `00-DOMAIN_VOCABULARY.md`, `01-ARCHITECTURE.md`
 
-## Purpose
-
-This document defines the conceptual P0 domain model.
-
-It describes the core domain objects, their meaning, their relationships, and the business invariants that must remain true across all Vertical Slices.
-
-This document does not define the final Prisma schema, SQL types, primary-key implementation, foreign-key actions, indexes, REST DTOs, or WebSocket payloads. Those details belong to later contracts.
-
----
-
-# 1. Core Domain Objects
-
-P0 uses the following core domain objects:
+## 1. Core Domain Objects
 
 - `User`
 - `Trip`
@@ -28,574 +16,332 @@ P0 uses the following core domain objects:
 - `Proposal`
 - `Vote`
 
-`Owner` and `Member` are relationship roles, not standalone entities.
-
-`My Trips`, `Trip Workspace`, and `Itinerary` are product/domain views or concepts, not standalone persisted entities by definition.
-
-`TripMembership` is a technical relationship object representing an accepted non-owner Member's current membership in a Trip. The product-facing term remains `Member`.
+`Owner` and `Member` are Membership Roles, not standalone entities.
 
 ---
 
-# 2. Domain Relationship Overview
+# 2. Trip
 
-```mermaid
-flowchart TD
-    U[User]
-
-    T[Trip]
-    TM[TripMembership]
-    I[Invitation]
-    D[ItineraryDay]
-    A[Activity]
-    P[Proposal]
-    V[Vote]
-
-    U -->|owns exactly one relation per Trip| T
-    U -->|may hold| TM
-    TM -->|belongs to| T
-
-    T -->|may have| I
-    I -->|targets| U
-
-    T -->|defines date range for| D
-    D -->|groups| A
-    U -->|creates| A
-
-    T -->|contains| P
-    U -->|creates| P
-
-    P -->|contains current votes| V
-    U -->|casts| V
-```
-
-The diagram is conceptual. It does not imply that every box must become a separate database table.
-
----
-
-# 3. User
-
-A `User` is a registered account in the system.
-
-A User is identified in the product by a unique Username and uses a unique Email for authentication and exact invitation lookup.
-
-P0 requires a User to have:
-
-- Email;
-- Username;
-- password-based credentials.
-
-A User may:
-
-- own zero or more Trips;
-- be a Member of zero or more other Trips;
-- receive Invitations;
-- create Activities;
-- create Proposals;
-- cast Votes.
-
-A User does not gain access to a Trip merely because an Invitation exists.
-
-## Domain invariants
-
-- Email is unique across Users.
-- Username is unique across Users.
-- A User must be registered before being invited.
-- Authentication details are handled by the Auth Contract and are not expanded here.
-
----
-
-# 4. Trip
-
-A `Trip` is the root collaborative workspace for one group trip.
-
-A Trip contains the shared P0 planning state for that trip.
-
-A Trip has:
+P0 Trip data includes:
 
 - Title;
 - Destination;
 - Start Date;
 - End Date;
 - optional Description;
-- exactly one Owner.
+- historical Creator.
 
-A Trip may also have:
+The Creator receives `TripMembership(role = OWNER)` at creation.
 
-- zero or more current non-owner Members;
-- Invitations;
-- Itinerary Days;
-- Activities;
-- Proposals;
-- Votes through its Proposals.
+Creator and Owner are different concepts:
 
-## Owner model
+```text
+Creator = historical creation fact
+Owner = current Membership Role
+```
 
-The Trip's direct Owner relationship is the single source of truth for ownership in P0.
+Authorization uses only current Membership Role.
 
-The Owner is not represented by a second `OWNER` role inside `TripMembership`.
-
-This avoids storing the same ownership fact twice.
-
-P0 therefore does not require role values such as:
-
-- `OWNER`;
-- `EDITOR`;
-- `VIEWER`.
-
-The Owner has special Trip-level permissions because the User is the Trip's Owner, not because of a membership-role enum.
-
-## Domain invariants
-
-- Every Trip has exactly one Owner.
-- The Owner is the User who creates the Trip.
-- Ownership cannot be transferred in P0.
-- The Owner cannot leave the Trip.
-- End Date must not be earlier than Start Date.
-- Trip Title, Destination, Start Date, and End Date are required.
-- Only the Owner may modify Trip-level details, invite Users, or delete the Trip.
+P0 has no Edit Trip and no Owner Transfer.
 
 ---
 
-# 5. TripMembership
+# 3. TripMembership
 
-`TripMembership` represents the current accepted membership relationship between a non-owner User and a Trip.
+Every current Trip participant has one current TripMembership.
 
-It exists only after an Invitation has been accepted.
-
-It does not represent:
-
-- the Trip Owner;
-- a Pending Invitation;
-- a declined Invitation;
-- a former Member who has already left.
-
-The product-facing User represented by a current TripMembership is called a `Member`.
-
-## Why ownership is not duplicated here
-
-P0 already has exactly one Owner directly on the Trip.
-
-Adding an additional `OWNER` membership row would create two possible ownership sources:
+Roles:
 
 ```text
-Trip.owner
-and
-TripMembership.role = OWNER
+OWNER
+MEMBER
 ```
 
-Those two values could disagree.
+Invariants:
 
-P0 therefore uses:
-
-```text
-Trip.owner
-```
-
-for ownership, and:
-
-```text
-TripMembership
-```
-
-for accepted non-owner Members.
-
-## Domain invariants
-
-- A User may have at most one current TripMembership for the same Trip.
-- A Pending Invitation is not a TripMembership.
-- Accepting an Invitation creates Membership.
-- Declining an Invitation does not create Membership.
-- Leaving a Trip removes the current Membership.
-- Removing Membership immediately removes future Trip Workspace access.
-- Historical Activity and Proposal contributions are not deleted when Membership ends.
+- one Trip + User has at most one current Membership;
+- each Trip has exactly one `OWNER`;
+- Accept Invitation creates `MEMBER`;
+- `MEMBER` may Leave;
+- `OWNER` may not Leave;
+- Leave removes access but preserves historical Activity/Proposal contributions.
 
 ---
 
-# 6. Invitation
+# 4. Invitation
 
-An `Invitation` represents an Owner asking an already registered User to join a Trip.
-
-An Invitation relates:
-
-- one Trip;
-- one invited User.
-
-In P0, only the Trip Owner can create an Invitation.
-
-Because ownership cannot be transferred in P0, the inviter is derivable from the Trip Owner and does not require a separate inviter role in the conceptual model.
-
-## Invitation lifecycle
-
-The important domain distinction is whether an Invitation is currently pending.
-
-Conceptually:
+Canonical statuses:
 
 ```text
-Invitation created
-       |
-       v
-    PENDING
-     /   \
-    /     \
-ACCEPT   DECLINE
-  |         |
-  v         v
-Membership  No Membership
-created
+PENDING
+ACCEPTED
+REJECTED
 ```
 
-The Database Contract will decide whether accepted or declined Invitation records are retained or removed. P0 does not require invitation-history features.
+Invariants:
 
-## Domain invariants
-
-- Only registered Users may be invited.
-- Only the Owner may invite.
-- A Pending Invitation does not grant Trip access.
-- There may be at most one effective Pending Invitation for the same Trip and invited User.
-- A User who is already a current Member cannot receive another effective Invitation for the same Trip.
-- After a decline, the Owner may invite the same User again later.
-- Accepting creates Membership and ends the Pending Invitation state.
-- Declining ends the Pending Invitation state without creating Membership.
+- only Owner invites;
+- Invitee must already be registered;
+- Pending does not grant Workspace access;
+- at most one effective Pending per Trip + Invitee;
+- Accept creates MEMBER Membership;
+- Reject creates none;
+- Reject may later be followed by a new Invitation.
 
 ---
 
-# 7. Itinerary and ItineraryDay
+# 5. ItineraryDay
 
-`Itinerary` is the complete day-by-day plan of a Trip.
+All ItineraryDays are created when the Trip is created.
 
-It is a domain/product concept and does not require its own standalone persisted entity.
+Trip dates are immutable in P0.
 
-An `ItineraryDay` represents one calendar date inside the inclusive Trip date range:
+There is one Day per date in the inclusive Start–End range.
 
-```text
-Start Date ... End Date
-```
-
-Itinerary Days are generated by the system from the Trip date range.
-
-Users do not manually create or delete Itinerary Days.
-
-## Persistence note
-
-`ItineraryDay` is part of the domain model, but this document does not require a dedicated `ItineraryDay` database table.
-
-The Database Contract may choose either to persist ItineraryDay records or derive them from the Trip date range, provided all Business Rules remain satisfied.
-
-## Date-range invariants
-
-- There is conceptually one ItineraryDay for each date from Start Date through End Date.
-- Extending the Trip date range creates additional available days without changing existing Activities.
-- Shrinking the Trip date range is allowed when removed days contain no Activities.
-- If shrinking would remove a day containing an Activity, the entire Trip date update must be rejected.
-- Activities must always belong to a date inside the current Trip date range.
+P0 has no date shifting, Day editing, or Unscheduled Activity Pool.
 
 ---
 
-# 8. Activity
+# 6. Activity
 
-An `Activity` is one planned item in the Trip Itinerary.
+An Activity belongs to exactly one Trip and one valid ItineraryDay of that Trip.
 
-An Activity belongs to exactly one Trip date / ItineraryDay.
-
-P0 Activity business data includes:
+Fields/concepts include:
 
 - Title;
-- Date;
+- Day / Date;
 - Start Time;
 - optional End Time;
 - optional Location;
 - optional Description;
-- Creator.
+- Creator;
+- Last Editor;
+- Last Edited At;
+- optional Created At.
 
-The Creator is the User who originally created the Activity.
+Rules:
 
-Creator identity does not create exclusive ownership of the Activity.
+- Title/Day/Start Time required;
+- End Time >= Start Time when present;
+- overlap allowed;
+- all current participants may CRUD;
+- no Activity Locking;
+- stale updates must not silently overwrite newer data.
 
-All current Trip participants with workspace access, including the Owner and current Members, may create, read, update, and delete Activities according to the Business Rules.
+An Activity may optionally record that it was created from one Proposal.
 
-## Domain invariants
-
-- Title is required.
-- Date must be inside the Trip date range.
-- Start Time is required.
-- End Time is optional.
-- If End Time exists, it must not be earlier than Start Time.
-- Activities are ordered by Start Time within their date.
-- Activities may overlap in time.
-- Activity Creator is recorded.
-- Creator status does not give exclusive edit or delete rights.
-- P0 has no per-Activity participant list.
-- P0 has no Activity Confirmed / Locked lifecycle.
-- P0 has no drag-and-drop ordering contract.
-
-## Concurrent updates
-
-P0 requires stale concurrent Activity updates not to silently overwrite newer state.
-
-The domain requirement is:
-
-> a stale Activity update must be detected and rejected.
-
-The exact implementation, such as a version field and HTTP `409 Conflict`, is deferred to the Database and REST API contracts.
+The exact field is defined in the Database Contract.
 
 ---
 
-# 9. Proposal
+# 7. Proposal
 
-A `Proposal` is an optional group decision object inside a Trip.
+A Proposal is an optional group-decision object.
 
-It is used when current Trip participants want to collect Yes / No opinions about an undecided travel choice.
-
-A Proposal belongs to exactly one Trip.
-
-P0 Proposal business data includes:
+P0 Proposal data includes:
 
 - Title;
-- Description;
+- optional Description;
 - Creator;
-- Created At.
+- Created At;
+- `is_adopted`.
 
-The Creator is the User who creates the Proposal.
-
-## Domain invariants
-
-- Current Trip participants, including the Owner, may create Proposals.
-- The Proposal Creator may vote on their own Proposal.
-- A Proposal does not require Owner approval.
-- A Proposal is not a required step before creating an Activity.
-- A Proposal does not automatically become an Activity.
-- P0 has no Proposal status such as Passed or Rejected.
-- P0 has no Proposal deadline or Close action.
-- P0 has no Proposal edit or delete action.
-- P0 has no Proposal options collection beyond the shared Yes / No Vote model.
-- P0 has no required Proposal-to-Activity relationship.
-
----
-
-# 10. Vote
-
-A `Vote` represents one User's current Yes / No choice on one Proposal.
-
-A Vote belongs to:
-
-- exactly one Proposal;
-- exactly one voting User.
-
-The canonical P0 vote values are:
+Meaning:
 
 ```text
-YES
-NO
+is_adopted = false
+→ Proposal has not currently been accepted/adopted
+
+is_adopted = true
+→ Proposal has been manually accepted/adopted
 ```
 
-## Domain invariants
+`is_adopted` is only the adoption marker.
 
-- Only current Trip participants may vote on a Proposal belonging to that Trip.
-- The Proposal Creator may vote.
-- A voting User has at most one current Vote per Proposal.
-- Changing from `YES` to `NO`, or from `NO` to `YES`, updates the current choice rather than adding another current Vote.
-- Votes do not automatically produce Passed / Rejected Proposal state.
-- P0 has no tie-break rule.
-- P0 has no Owner final-decision rule.
-- P0 has no Abstain value.
+It is not itself the Proposal-to-Activity relation.
 
-## Membership-ending behaviour
-
-When a Member leaves a Trip, that User's Votes in the Trip must no longer count as current Votes.
-
-P0 does not require vote audit history.
-
-The Database Contract may therefore use deletion of those current Votes as the simplest implementation.
+P0 has no automatic Passed/Rejected status, no Deadline, and no Proposal Edit/Delete.
 
 ---
 
-# 11. Access Model at Domain Level
+# 8. Vote
 
-A User may access a Trip Workspace when the User is either:
+A Vote belongs to one Proposal and one voting User.
+
+Decision:
 
 ```text
-the Trip Owner
-OR
-a current Member represented by TripMembership
+AGREE
+REJECT
 ```
 
-A Pending Invitation alone does not satisfy this rule.
+No Vote row means not voted.
 
-Conceptually:
+Rules:
+
+- only current participants may vote;
+- one current Vote per Proposal + User;
+- changing Vote updates the existing row;
+- no Abstain;
+- after `is_adopted = true`, Vote creation/change is closed;
+- when a Member leaves, their Vote no longer counts.
+
+---
+
+# 9. Strict Majority
+
+Let:
 
 ```text
-canAccessTrip(user, trip)
-=
-trip.owner == user
-OR
-current TripMembership exists for user + trip
+N = current OWNER + MEMBER count
+A = current AGREE Vote count
 ```
 
-This is a domain rule only.
-
-The Auth Contract defines how the backend authenticates the User and enforces this rule technically.
-
----
-
-# 12. My Trips at Domain Level
-
-`My Trips` is not a standalone entity.
-
-For a User, the My Trips result is conceptually:
+Adoption eligibility:
 
 ```text
-Trips owned by the User
-UNION
-Trips where the User has a current TripMembership
+A > N / 2
 ```
 
-Pending Invitations are displayed separately and do not become part of My Trips until accepted.
-
----
-
-# 13. Important Lifecycle Rules
-
-## 13.1 Accept Invitation
+Equivalent:
 
 ```text
-Pending Invitation
-        ↓
-      Accept
-        ↓
-Create current TripMembership
-        ↓
-User gains Trip Workspace access
-        ↓
-Trip appears in My Trips
+A >= floor(N / 2) + 1
 ```
 
-## 13.2 Decline Invitation
+Owner and non-voters count in `N`.
+
+Former participants do not.
+
+---
+
+# 10. Adoption
+
+Any current Trip participant may request Adoption.
+
+A successful Adoption must:
+
+1. verify current Membership;
+2. verify Proposal belongs to the Trip;
+3. verify `is_adopted == false`;
+4. recompute current strict majority;
+5. validate required Activity scheduling data;
+6. create exactly one Activity from the Proposal;
+7. mark `Proposal.is_adopted = true`;
+8. commit atomically;
+9. broadcast only after commit.
+
+The Proposal-to-Activity relation is a separate persistence concern from `is_adopted`.
+
+The Database Contract will define the exact FK/unique design.
+
+Concurrent Adoption attempts must not create duplicate Activities from the same Proposal.
+
+---
+
+# 11. Delete Adopted Activity / Re-Adopt
+
+If the Activity created through Adoption is deleted:
+
+- Proposal remains;
+- existing Votes remain;
+- `Proposal.is_adopted` becomes `false`;
+- voting rules become available again;
+- future Adoption must recompute and satisfy current strict majority;
+- a new Activity may then be created.
+
+The delete + `is_adopted` reset must be consistent/atomic.
+
+---
+
+# 12. Access Model
+
+Workspace access:
 
 ```text
-Pending Invitation
-        ↓
-      Decline
-        ↓
-No TripMembership created
-        ↓
-No Trip Workspace access
+current TripMembership exists
 ```
 
-The same User may be invited again later.
-
-## 13.3 Leave Trip
+Owner-only check:
 
 ```text
-Current non-owner Member
-        ↓
-     Leave Trip
-        ↓
-Remove current TripMembership
-        ↓
-Remove access immediately
-        ↓
-Trip disappears from My Trips
+TripMembership.role == OWNER
 ```
 
-Historical Activities and Proposals created by that User remain.
-
-That User's current Votes in the Trip must no longer count.
-
-## 13.4 Delete Trip
-
-Deleting a Trip deletes the entire P0 workspace associated with that Trip.
-
-Conceptually this includes:
-
-- TripMemberships;
-- Invitations;
-- Itinerary Day state if persisted;
-- Activities;
-- Proposals;
-- Votes.
-
-P0 has no archive, restore, or trash lifecycle.
-
-The exact foreign-key and cascade implementation is defined in the Database Contract.
+Historical `created_by` is never an authorization source.
 
 ---
 
-# 14. Domain Boundaries and Non-Entities
+# 13. Important Lifecycles
 
-The following P0 concepts must not accidentally become unnecessary standalone entities merely because they appear in the UI or Business Rules:
+## Create Trip
 
-- `Owner` — a User-to-Trip role;
-- `Member` — a User with current TripMembership;
-- `My Trips` — a query/view;
-- `Trip Workspace` — a product area;
-- `Itinerary` — a day-organized domain view;
-- `Accept` — an action;
-- `Decline` — an action;
-- `Leave Trip` — an action;
-- `Realtime Update` — a delivery mechanism.
+```text
+Create Trip
+→ create Creator Membership(role=OWNER)
+→ generate all ItineraryDays
+→ commit
+```
 
-Creating a database table for any of these requires a separate technical reason and is not implied by this Domain Model.
+## Accept
+
+```text
+PENDING Invitation
+→ ACCEPTED
+→ create Membership(role=MEMBER)
+```
+
+## Reject
+
+```text
+PENDING Invitation
+→ REJECTED
+→ no Membership
+```
+
+## Leave
+
+```text
+MEMBER Membership
+→ remove Membership
+→ access removed
+→ historical Activity/Proposal retained
+→ Vote no longer counts
+```
+
+## Adopt
+
+```text
+Proposal.is_adopted = false
+→ strict majority satisfied
+→ create Proposal-sourced Activity
+→ Proposal.is_adopted = true
+```
+
+## Delete adopted Activity
+
+```text
+delete Proposal-sourced Activity
+→ Proposal.is_adopted = false
+→ Votes remain
+→ future Adoption must pass current majority again
+```
+
+## Delete Trip
+
+Delete the complete Workspace: Memberships, Invitations, Days, Activities, Proposals, Votes.
 
 ---
 
-# 15. Explicit P0 Domain Exclusions
+# 14. Deferred Database Decisions
 
-The P0 Domain Model does not contain:
+Database Contract decides:
 
-- `Message`;
-- `Chat`;
-- `Notification`;
-- `Friend`;
-- `Expense`;
-- `File` / `TripDocument`;
-- `ActivityParticipant`;
-- `ProposalStatus`;
-- `ProposalOption`;
-- `OwnershipTransfer`;
-- Activity approval / confirmation entities;
-- audit-history entities.
-
-Future phases may extend the Domain Model, but those concepts must not be introduced into P0 implementation without an explicit scope change.
-
----
-
-# 16. Decisions Deferred to Later Contracts
-
-This Domain Model intentionally does not decide:
-
-- UUID versus another primary-key representation;
-- exact Prisma model syntax;
-- database column names and SQL types;
-- foreign-key `CASCADE`, `RESTRICT`, or `SET NULL` details;
-- whether `ItineraryDay` is persisted or derived;
-- whether terminal Invitation records are retained;
-- password hashing implementation;
-- authentication token/cookie strategy;
-- Activity concurrency field implementation;
-- REST endpoint paths;
-- REST request/response DTOs;
-- WebSocket room names, event names, and payloads;
-- shared TypeScript package structure.
-
-Those decisions belong to the Database, Auth, REST, Realtime, and Shared Types contracts.
-
----
-
-# Review Checklist
-
-Before freezing this document, the team should confirm:
-
-- [ ] The eight core P0 domain objects are sufficient.
-- [ ] `Owner` is a direct Trip relationship and is not duplicated as a membership role.
-- [ ] `TripMembership` represents accepted non-owner Members only.
-- [ ] Pending Invitation and Membership are separate concepts.
-- [ ] Accepting an Invitation creates Membership.
-- [ ] Leaving removes Membership but preserves historical Activities and Proposals.
-- [ ] Votes from a User who leaves no longer count.
-- [ ] `ItineraryDay` is understood as a domain concept even if persistence remains undecided.
-- [ ] Activities belong to a valid Trip date and are ordered by Start Time.
-- [ ] Proposal and Activity are independent domain objects.
-- [ ] Proposal has no P0 Passed / Rejected lifecycle.
-- [ ] Vote means one current `YES` or `NO` choice per User per Proposal.
-- [ ] `My Trips`, `Trip Workspace`, and `Itinerary` are not being mistaken for required database entities.
-- [ ] Message / Chat and other future concepts have not entered the P0 model.
+- exact PK/FK types;
+- how exactly one OWNER is enforced;
+- Pending Invite uniqueness mechanism;
+- exact Activity field used to record Proposal origin;
+- exact one-Proposal-to-one-current-adopted-Activity constraint;
+- exact CASCADE rules;
+- Activity OCC version field;
+- Vote cleanup on Leave.
