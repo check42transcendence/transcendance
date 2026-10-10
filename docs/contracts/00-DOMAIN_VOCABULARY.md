@@ -3,7 +3,7 @@
 Status: Draft  
 Scope: P0  
 Owner: Tech Lead  
-Depends on: Frozen P0 Scope and P0 Business Rules
+Depends on: Frozen P0 Scope and Frozen P0 Business Rules v2 (2026-10-09)
 
 ## Purpose
 
@@ -13,7 +13,7 @@ The purpose is to make sure the team uses the same word for the same concept.
 
 This document defines meanings only.
 
-It does not define database tables, API endpoints, DTO fields, or implementation details.
+It does not define final database columns, API endpoints, DTO fields, or implementation details.
 
 ---
 
@@ -21,7 +21,7 @@ It does not define database tables, API endpoints, DTO fields, or implementation
 
 A registered account in the system.
 
-A User has a unique Email and Username and can authenticate using Email and Password.
+A User has a unique Email and Username and authenticates using Email and Password.
 
 A User does not automatically have access to any Trip.
 
@@ -37,289 +37,412 @@ Do not use `Account`, `Person`, `Traveler`, or `Participant` as alternative tech
 
 A shared travel-planning workspace for one group traveling together.
 
-A Trip contains its basic travel information and the collaborative content created by its Owner and Members.
+A Trip contains fixed P0 travel information, current Memberships, Itinerary Days, Activities, Proposals, and Votes.
 
-A Trip has exactly one Owner in P0.
+In P0, Trip base information is fixed after creation.
+
+A Trip has exactly one current Owner.
+
+---
+
+## 3. Trip Creator
+
+The User who originally creates a Trip.
+
+Creation is a historical fact.
+
+When a Trip is created, the Creator receives the `OWNER` Membership Role.
+
+P0 does not support ownership transfer, so the Creator and current Owner remain the same User in normal P0 data. However, authorization must use the current Membership Role, not the historical Creator relationship.
 
 ### Terminology rule
 
-Use `Trip`.
+Use `Creator` only when referring to who originally created the Trip.
 
-Do not use `Journey`, `Travel`, `Project`, or `Room` as alternative technical names.
+Do not use `Creator` as a synonym for `Owner` in authorization logic.
 
 ---
 
-## 3. Owner
+## 4. TripMembership
 
-The User who creates a Trip and owns that Trip.
+The current relationship between a User and a Trip.
+
+Every current Trip participant has one TripMembership for that Trip.
+
+A TripMembership has one P0 Membership Role:
+
+```text
+OWNER
+MEMBER
+```
+
+A Pending Invitation is not a TripMembership.
+
+A former Member who has left no longer has a current TripMembership.
+
+### Terminology rule
+
+Use `TripMembership` for the technical/domain relationship.
+
+A database table may use a naming convention such as `trip_member`, but it represents this same concept.
+
+---
+
+## 5. Membership Role
+
+The current authorization role stored on a TripMembership.
+
+P0 has exactly two Membership Roles:
+
+```text
+OWNER
+MEMBER
+```
+
+P0 does not have Editor, Viewer, Admin, or other complex Trip roles.
+
+---
+
+## 6. Owner
+
+The current Trip participant whose TripMembership has role `OWNER`.
 
 In P0:
 
-- each Trip has exactly one Owner;
-- the Owner cannot leave the Trip;
+- each Trip has exactly one current Owner;
+- only the Owner may invite Users;
+- only the Owner may delete the Trip;
+- the Owner cannot Leave Trip;
 - ownership cannot be transferred;
-- some Trip-level operations are Owner-only.
+- the Owner cannot edit Trip base information because P0 has no Edit Trip feature.
 
-`Owner` is a role inside the context of one Trip.
-
-A User may be the Owner of one Trip and a Member of another Trip.
+Owner authority is determined by the current Membership Role, not by `created_by` or another Creator field.
 
 ---
 
-## 4. Member
+## 7. Member
 
-A registered User who has formally joined a Trip after accepting an Invitation.
+A current Trip participant whose TripMembership has role `MEMBER`.
 
-A Member can access the Trip Workspace and participate in P0 collaborative features according to the Business Rules.
+A User normally becomes a Member after accepting an Invitation.
+
+A Member can access the Trip Workspace and participate in collaborative P0 features according to the Business Rules.
 
 A User with only a Pending Invitation is not yet a Member.
 
-In P0 product language, `Owner` and `Member` are kept distinct when their permissions differ.
+---
 
-### Terminology rule
+## 8. Current Trip Participant
 
-Use `Member`.
+A User who currently has a TripMembership for a Trip with role:
 
-Do not use `Participant`, `Traveler`, `Collaborator`, or `Guest` as alternative technical names.
+```text
+OWNER
+or
+MEMBER
+```
+
+This term is used when a rule applies to both Owner and Member.
+
+For Proposal majority calculations, all Current Trip Participants count in the denominator, including the Owner and participants who have not voted.
 
 ---
 
-## 5. Invitation
+## 9. Invitation
 
-A request sent by a Trip Owner asking an already registered User to join that Trip.
+A request sent by the current Trip Owner asking an already registered User to join the Trip.
 
 An Invitation does not itself grant access to the Trip Workspace.
 
-The invited User must Accept the Invitation before becoming a Member.
-
-### Terminology rule
-
-Use `Invitation` as the domain noun.
-
-`Invite` may be used as the action verb.
+The invited User must Accept before receiving a `MEMBER` TripMembership.
 
 ---
 
-## 6. Pending Invitation
+## 10. Pending Invitation
 
-An Invitation that has been sent but has not yet been accepted or declined.
+An Invitation with status `PENDING`.
 
-A Pending Invitation may expose enough Trip summary information for the invited User to make a decision, but it does not create Membership or Trip access.
+A Pending Invitation may expose the limited Trip summary defined by the Business Rules, but it does not create Membership or Trip Workspace access.
+
+For one Trip + Invitee, P0 allows at most one effective Pending Invitation at a time.
 
 ---
 
-## 7. Accept
+## 11. Accept
 
-The action by which an invited User accepts a Pending Invitation.
+The action by which the invited User accepts a Pending Invitation.
 
 After Accept:
 
-- the User becomes a Member of the Trip;
+- the Invitation becomes `ACCEPTED`;
+- the User receives a `MEMBER` TripMembership;
 - the Trip appears in My Trips;
-- the User gains access to the Trip Workspace.
+- the User gains Trip Workspace access.
 
-`Accept` is an action, not a separate domain entity.
-
----
-
-## 8. Decline
-
-The action by which an invited User rejects a Pending Invitation.
-
-After Decline:
-
-- the User does not become a Member;
-- the Trip does not appear in My Trips;
-- the User does not gain access to the Trip Workspace.
-
-`Decline` is an action, not a separate domain entity.
+`Accept` is an action, not a standalone domain entity.
 
 ---
 
-## 9. My Trips
+## 12. Reject
 
-The authenticated User's collection of Trips that the User currently owns or has joined as a Member.
+The action by which the invited User rejects a Pending Invitation.
 
-My Trips is a product concept / view.
+After Reject:
 
-It is not a separate domain entity.
+- the Invitation becomes `REJECTED`;
+- no TripMembership is created;
+- the Trip does not enter My Trips;
+- the User does not gain Trip Workspace access.
+
+The UI may use the word `Decline`, but the canonical technical Invitation status is `REJECTED`.
+
+`Reject` is an action, not a standalone domain entity.
 
 ---
 
-## 10. Trip Workspace
+## 13. My Trips
+
+The authenticated User's collection of Trips for which the User currently has a TripMembership.
+
+This includes both:
+
+- Trips where the User's role is `OWNER`;
+- Trips where the User's role is `MEMBER`.
+
+My Trips is a product query/view, not a standalone domain entity.
+
+Pending Invitations are shown separately until accepted.
+
+---
+
+## 14. Trip Workspace
 
 The private collaborative area belonging to one Trip.
 
-The Trip Workspace contains the P0 content accessible only to the current Owner and Members, including:
+The Trip Workspace contains P0 content available only to Current Trip Participants, including:
 
 - Trip details;
-- Member list;
+- full Member List;
 - Itinerary;
 - Activities;
 - Proposals;
-- Votes.
+- Votes;
+- Proposal adoption state.
 
 A Pending Invitation does not grant access to the Trip Workspace.
 
-`Trip Workspace` describes the collaborative product area. It does not imply a separate database entity.
+---
+
+## 15. Itinerary
+
+The complete travel plan of a Trip, organized by its fixed Itinerary Days.
+
+`Itinerary` is a product/domain concept, not a separate P0 entity by itself.
 
 ---
 
-## 11. Itinerary
+## 16. ItineraryDay
 
-The complete travel plan of a Trip, organized by date.
+One calendar date inside the Trip's fixed Start Date–End Date range.
 
-In P0, the Itinerary is composed of automatically generated Itinerary Days and the Activities belonging to those days.
-
-`Itinerary` is a domain/product concept and does not necessarily require its own database entity.
-
----
-
-## 12. Itinerary Day
-
-One calendar date inside a Trip's Start Date and End Date range.
-
-Itinerary Days are generated automatically from the Trip date range in P0.
-
-Users do not manually create or delete Itinerary Days.
-
-An Itinerary Day groups the Activities planned for that date.
-
-### Terminology rule
-
-Use `ItineraryDay` in technical naming when a single word identifier is needed.
-
-`Day` may be used as a shorter user-facing label when the meaning is clear.
-
-Do not use `ScheduleDay` or `TripDay` as alternative technical names.
-
----
-
-## 13. Activity
-
-One planned item inside an Itinerary Day.
-
-Examples include visiting a museum, eating at a restaurant, or taking a train.
-
-An Activity belongs to one Trip date and contains the information required by the P0 Business Rules.
-
-All current Trip Members may create, read, update, and delete Activities.
-
-### Terminology rule
-
-Use `Activity`.
-
-Do not use `Event`, `Plan`, `ScheduleItem`, or `Task` as alternative technical names.
-
----
-
-## 14. Activity Creator
-
-The User who originally creates an Activity.
-
-The system records the Creator for identity and history purposes.
-
-In P0, being the Activity Creator does not give special exclusive update or delete permission because all current Trip Members may edit the shared Itinerary.
-
-`Creator` is an attribute / relationship of an Activity, not a separate role.
-
----
-
-## 15. Proposal
-
-A suggestion created by a current Trip Member when the group wants to collect opinions about a travel decision.
-
-A Proposal is an optional decision-making tool.
-
-It is not a required approval step before creating an Activity.
-
-In P0, a Proposal does not automatically become Passed or Rejected and is not automatically converted into an Activity.
-
-### Terminology rule
-
-Use `Proposal`.
-
-Do not use `Poll`, `Decision`, `Suggestion`, or `Request` as alternative technical names for the same domain concept.
-
----
-
-## 16. Proposal Creator
-
-The User who originally creates a Proposal.
-
-The Proposal Creator remains a normal voting-eligible Trip Member and may vote on their own Proposal.
-
-`Proposal Creator` does not define a separate permission role in P0.
-
----
-
-## 17. Vote
-
-The current Yes / No choice of one eligible Trip Member on one Proposal.
-
-A Member may have at most one current Vote for a Proposal.
-
-Changing a Vote replaces the previous choice rather than creating an additional Vote.
+All Itinerary Days are generated when the Trip is created.
 
 In P0:
 
-- Vote values are `YES` or `NO`;
-- there is no automatic Passed / Rejected result;
-- there is no Abstain value;
-- Proposal Close / Deadline is not part of P0.
+- Users cannot manually create or delete a Day;
+- Trip dates do not change after creation;
+- Days are not shifted, extended, shortened, or renumbered;
+- deleting the Trip deletes its Days.
 
-### Terminology rule
-
-Use `Vote`.
-
-Use `YES` and `NO` as the canonical technical values unless a later Shared Types Contract explicitly defines another representation.
+Use `ItineraryDay` in technical naming when a single-word identifier is needed.
 
 ---
 
-## 18. Current Member
+## 17. Activity
 
-A User who currently has valid membership in a Trip.
+One scheduled item inside a valid Itinerary Day.
 
-A User who has left the Trip is no longer a Current Member.
+An Activity may be:
 
-A User with only a Pending Invitation is not a Current Member.
+- created directly by a Current Trip Participant; or
+- created through manual Proposal Adoption.
 
-When a Business Rule says that an operation is available to "current Trip Members", it refers to users who currently hold valid access to that Trip, including the Owner where applicable.
+An Activity contains the P0 information defined by the Business Rules, including its Creator and recent-edit information.
 
----
+All Current Trip Participants may create, read, update, and delete Activities.
 
-## 19. Leave Trip
-
-The action by which a normal Member ends their current Membership in a Trip.
-
-In P0, the Owner cannot Leave Trip.
-
-Leaving a Trip removes future access but does not erase the Member's historical Activity or Proposal contributions.
-
-`Leave Trip` is an action, not a domain entity.
+P0 has no Unscheduled Activity state and no Activity Locking state.
 
 ---
 
-## 20. Realtime Update
+## 18. Activity Creator
 
-A change that is pushed to other currently connected Trip Members without requiring them to manually refresh the page.
+The User who originally creates an Activity.
 
-In P0, realtime collaboration applies to the objects explicitly listed in the P0 Scope and Business Rules.
+Creator is historical information.
 
-A Realtime Update is a delivery mechanism, not the authoritative stored state.
+Being the Activity Creator does not grant exclusive update or delete permission.
 
-The technical implementation is defined later in the Realtime Contract.
+---
+
+## 19. Activity Last Editor
+
+The User who most recently saves an Activity update.
+
+The system records the last editor and last-edited time after a successful update.
+
+This is not a full audit history.
+
+---
+
+## 20. Proposal
+
+A suggestion created by a Current Trip Participant when the group wants to collect opinions about an undecided travel choice.
+
+A Proposal is optional.
+
+A Current Trip Participant may always create an Activity directly without first creating a Proposal.
+
+A Proposal can be manually Adopted only after the current AGREE votes satisfy the P0 strict-majority rule.
+
+P0 does not automatically convert a Proposal into an Activity.
+
+---
+
+## 21. Proposal Creator
+
+The User who originally creates a Proposal.
+
+The Proposal Creator may vote on their own Proposal while it is not Adopted.
+
+Creator status does not create a separate permission role.
+
+---
+
+## 22. Vote
+
+One Current Trip Participant's current choice on one Proposal.
+
+The canonical P0 Vote values are:
+
+```text
+AGREE
+REJECT
+```
+
+A User has at most one current Vote per Proposal.
+
+Changing a Vote updates the existing current choice instead of adding a second current Vote.
+
+No Vote record means the User has not voted.
+
+P0 has no Abstain choice.
+
+While a Proposal is Adopted, new Votes and Vote changes are closed.
+
+---
+
+## 23. Strict Majority
+
+The rule that determines whether a Proposal is currently eligible for Adoption.
+
+A Proposal is eligible only when:
+
+```text
+AGREE votes > Current Trip Participant count / 2
+```
+
+Equivalent minimum:
+
+```text
+floor(currentParticipantCount / 2) + 1
+```
+
+The denominator includes:
+
+- the Owner;
+- all current `MEMBER` participants;
+- participants who have not voted.
+
+A participant who has left is not counted, and their Vote does not count.
+
+---
+
+## 24. Adoption
+
+The manual action that converts an eligible Proposal into a linked scheduled Activity.
+
+Adoption rules in P0:
+
+- the Proposal must currently satisfy Strict Majority;
+- any Current Trip Participant may Adopt;
+- Adoption is manual, never automatic;
+- Adoption creates one linked Activity after the user provides required scheduling information;
+- one Proposal may have at most one current linked Activity;
+- concurrent Adoption attempts must not create duplicate linked Activities;
+- while the linked Activity exists, the Proposal is considered Adopted and voting is closed.
+
+`Adoption` is an action/state transition, not a standalone entity.
+
+---
+
+## 25. Linked Activity
+
+The Activity created from one Proposal through Adoption.
+
+A Proposal may have zero or one current Linked Activity.
+
+A Linked Activity belongs to exactly one source Proposal.
+
+If the Linked Activity is deleted:
+
+- the Proposal becomes unadopted / adoptable again;
+- existing Proposal and Vote data remain;
+- the current majority requirement is checked again before another Adoption;
+- while the Proposal is unadopted, normal pre-Adoption voting rules apply again.
+
+A directly created Activity has no source Proposal.
+
+---
+
+## 26. Leave Trip
+
+The action by which a `MEMBER` ends their own current TripMembership.
+
+The `OWNER` cannot Leave Trip.
+
+Leaving:
+
+- removes future Trip Workspace access;
+- removes the Trip from My Trips;
+- does not erase historical Activity or Proposal contributions;
+- causes the leaving User's Vote to stop counting.
+
+---
+
+## 27. Realtime Update
+
+A change pushed to other currently connected Trip participants without requiring manual refresh.
+
+P0 realtime collaboration covers the changes defined by the Business Rules, including:
+
+- Activity changes and recent-editor data;
+- Proposal creation;
+- Vote changes;
+- Proposal Adoption / unadopted state changes.
+
+Realtime delivery is not the authoritative stored state.
 
 ---
 
 # Naming Rules
 
-For P0 technical documents and implementation, use the canonical domain names defined above.
-
-Preferred technical names include:
+Preferred P0 technical names include:
 
 - `User`
 - `Trip`
+- `TripMembership`
+- `MembershipRole`
 - `Owner`
 - `Member`
 - `Invitation`
@@ -327,33 +450,42 @@ Preferred technical names include:
 - `Activity`
 - `Proposal`
 - `Vote`
+- `Adoption`
+- `LinkedActivity`
 
-Avoid introducing synonyms for the same domain concept unless a later contract explicitly defines a different technical layer.
+Canonical enum/value language:
 
-Examples:
+```text
+MembershipRole: OWNER | MEMBER
+InvitationStatus: PENDING | ACCEPTED | REJECTED
+VoteDecision: AGREE | REJECT
+```
 
-- use `Member`, not `Participant`;
-- use `Activity`, not `Event`;
-- use `Proposal`, not `Poll`;
-- use `Invitation`, not `Request`;
-- use `ItineraryDay`, not `TripDay`.
+Avoid alternative technical synonyms unless a later Shared Types Contract explicitly maps them.
 
 ---
 
 # Explicit P0 Vocabulary Boundary
 
-The following concepts are not part of the P0 domain vocabulary because they are outside the frozen P0 scope:
+The following concepts are outside the frozen P0 vocabulary:
 
 - Message / Chat
-- Notification
+- Notification Center
 - Friend
 - Expense
 - File / Trip Document
 - ActivityParticipant
-- ProposalStatus such as Passed / Rejected
+- Activity Lock / Confirmed state
+- Unscheduled Activity Pool
+- Proposal Passed / Rejected result status
+- Proposal Deadline
+- Proposal Option List
 - OwnershipTransfer
+- Editor / Viewer roles
+- Archive / Restore / Trash
+- full Activity Audit History
 
-They may be added to the vocabulary later if they enter a future product phase.
+Future phases may extend the vocabulary only through an explicit scope change.
 
 ---
 
@@ -361,11 +493,16 @@ They may be added to the vocabulary later if they enter a future product phase.
 
 Before freezing this document, the team should confirm:
 
-- [ ] Every P0 core concept has one clear canonical name.
-- [ ] No two terms describe the same concept unnecessarily.
-- [ ] `Owner` and `Member` are understood consistently.
-- [ ] `Pending Invitation` is clearly different from Membership.
-- [ ] `ItineraryDay` and `Activity` are clearly different concepts.
-- [ ] `Proposal` is clearly separated from `Activity`.
-- [ ] `Vote` means one Member's current Yes / No choice.
-- [ ] No P1 / P2 concept has accidentally entered the P0 vocabulary.
+- [ ] `Creator` and `Owner` are different concepts.
+- [ ] Owner authority comes from `TripMembership.role = OWNER`.
+- [ ] Every current Trip participant has a TripMembership.
+- [ ] P0 Membership Roles are only `OWNER` and `MEMBER`.
+- [ ] Pending Invitation is not Membership.
+- [ ] Invitation statuses use `PENDING / ACCEPTED / REJECTED`.
+- [ ] Itinerary Days are fixed after Trip creation.
+- [ ] Activity has no unscheduled or locked P0 state.
+- [ ] Vote values are `AGREE / REJECT`; no Vote means not voted.
+- [ ] Strict Majority uses all Current Trip Participants as the denominator.
+- [ ] Proposal Adoption is manual and creates at most one current Linked Activity.
+- [ ] Deleting the Linked Activity makes the Proposal adoptable again.
+- [ ] No P1/P2 concept has accidentally entered P0.
