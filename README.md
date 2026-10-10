@@ -8,7 +8,7 @@ A collaborative travel planning platform for small groups who have
 already decided to travel together.
 
 The planned core features include trip workspaces, shared itineraries,
-proposals, voting, and trip chat.
+proposals, voting, and real-time collaboration.
 
 ## Current Status
 

@@ -1,7 +1,7 @@
 name: transcendence
 
 services:
-  database:
+  postgres:
     image: postgres:17.11-alpine
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
@@ -27,9 +27,9 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@database:5432/${POSTGRES_DB}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
     depends_on:
-      database:
+      postgres:
         condition: service_healthy
     healthcheck:
       test:
