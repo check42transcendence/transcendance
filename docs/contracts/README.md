@@ -19,7 +19,7 @@ A frozen product baseline does not automatically freeze the technical contracts.
 
 0. `00-DOMAIN_VOCABULARY.md`
    - Canonical P0 terminology
-   - Shared meanings for User, Trip, Membership, Activity, Proposal, Vote, Adoption, and related concepts
+   - Shared meanings for User, Trip, Membership, Activity, Proposal, Vote, and Adoption
 
 1. `01-ARCHITECTURE.md`
    - Overall system structure
@@ -32,7 +32,7 @@ A frozen product baseline does not automatically freeze the technical contracts.
    - Core P0 domain objects
    - Entity meanings
    - Relationships and lifecycle rules
-   - Membership roles, Proposal adoption, and linked Activity rules
+   - Membership roles and Proposal adoption rules
 
 3. `03-AUTH_CONTRACT.md`
    - Authentication approach
@@ -85,33 +85,15 @@ Each contract follows:
 Draft → Team Review → Frozen
 ```
 
-### Draft
-
-The contract is still being designed and may change.
-
-### Team Review
-
-The proposed contract is ready for the team to check for conflicts or missing requirements.
-
-### Frozen
-
-The contract is the current shared technical agreement for P0.
-
-Frozen does not mean that a contract can never change.
-
-A change that affects multiple Vertical Slices must be discussed and the shared contract must be updated before dependent implementations are changed.
-
 ## Source of truth
 
 For P0:
 
 1. Frozen P0 Scope defines what P0 includes.
 2. Frozen P0 Business Rules define how the product behaves.
-3. `00-DOMAIN_VOCABULARY.md` defines the shared language used by the team.
-4. These Technical Contracts define how the shared technical system supports those rules.
+3. `00-DOMAIN_VOCABULARY.md` defines the shared language.
+4. These Technical Contracts define how the system supports those rules.
 5. Feature implementations must follow the frozen technical contracts.
-
-If a lower layer conflicts with a higher layer, the higher layer wins until the conflict is explicitly reviewed.
 
 ```text
 P0 Scope / Business Rules
@@ -122,9 +104,3 @@ Technical Contracts
         ↓
 ERD / Prisma / REST / Realtime implementation
 ```
-
-## Scope rule
-
-These documents define shared technical boundaries only.
-
-They should not prescribe private implementation details that affect only one Vertical Slice and do not create dependencies for other team members.
