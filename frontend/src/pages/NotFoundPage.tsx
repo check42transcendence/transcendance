@@ -1,5 +1,5 @@
-import { Link } from "react-router";
-import { PageContainer } from "../components/layout/PageContainer";
+import { Link } from 'react-router'
+import { PageContainer } from '../components/layout/PageContainer'
 import { t } from '../shared/i18n/translation'
 
 // Shows a fallback page for unknown URLs.

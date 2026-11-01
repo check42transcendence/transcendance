@@ -1,14 +1,10 @@
 import type {
-	RegisterInput,
-	LoginInput,
-	UserResponse,
+    RegisterInput,
+    LoginInput,
+    UserResponse,
 } from '@tripcollab/shared'
 
-import {
-    apiClient,
-    apiJson,
-    apiPostJson
-} from "../shared/api/api-client"
+import { apiClient, apiJson, apiPostJson } from '../lib/http/api-client'
 
 // Sends registration data to the backend.
 export function register(input: RegisterInput): Promise<UserResponse> {
@@ -28,6 +24,6 @@ export function getMe(): Promise<UserResponse> {
 // Asks the backend to end the current session.
 export async function logout(): Promise<void> {
     await apiClient('/auth/logout', {
-        method: 'POST'
+        method: 'POST',
     })
 }

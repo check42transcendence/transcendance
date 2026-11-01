@@ -8,9 +8,15 @@ Use the Node.js version in the repository's `.nvmrc`. From `frontend/`
 in your development environment (the Ubuntu development container if used):
 
 ```bash
+cd ../shared
+npm ci
+npm run build
+cd ../frontend
 npm ci
 npm run dev
 ```
+
+Rebuild `shared` after pulling or editing shared types.
 
 Open `http://localhost:5173`. Vite updates the page when source files change.
 The `/api` proxy defaults to `http://127.0.0.1:3000`; set `API_PROXY_TARGET`
@@ -18,6 +24,11 @@ to use another backend address. The running app checks the session on startup
 and requires a reachable backend.
 For real Auth testing, use the Docker/HTTPS setup in the
 [project README](../README.md), as authentication cookies are Secure.
+
+Use `npm run format` to format frontend files with Prettier, or
+`npm run format:check` to check formatting without changing files.
+To format only selected files, run `npx prettier --write <file-paths>` from
+`frontend/`. ESLint checks code rules; Prettier handles formatting.
 
 Before submitting changes:
 
@@ -33,11 +44,23 @@ npm run build
 
 - `/` redirects to `/login`.
 - `/login` and `/register` show the Auth pages.
-- `/home` is a temporary Auth verification page showing the current user
-  and a sign-out button. Unauthenticated users are redirected to `/login`.
+- `/home` shows the current user's trips and a sign-out button.
+- `/trips/new` shows the trip creation form.
+- `/trips/:tripId` is a Workspace placeholder; details and deletion UI follow in #84.
+- These three routes require sign-in; unauthenticated users are redirected to `/login`.
 - Unknown paths show the not-found page.
 
 Use React Router navigation instead of local state to switch pages.
+
+## Trips
+
+Home loads member-scoped trips and shows loading, error, and empty states.
+Select a trip title to open its Workspace path, or choose Create trip.
+
+Creation requires a title, destination, and dates; description is optional.
+Dates must be ordered and span at most 365 days, including both endpoints.
+Successful creation opens the new Workspace path. Failed requests preserve
+input for retry; Cancel returns home without submitting.
 
 ## Authentication
 
@@ -52,18 +75,33 @@ the shared API client. `App.tsx` manages user state, loading, errors, and naviga
   If logout fails, the current user is preserved and an error is shown.
 
 `npm test` runs API and page tests with mocked requests; no backend is required.
+
+Frontend tests are grouped by responsibility:
+
+- `src/App.test.tsx`: routing, session restoration, and logout.
+- `src/pages/*.test.tsx`: page tests, including login and registration flows through App.
+- `src/api/auth.test.ts`: Auth API requests and responses.
+- `src/lib/http/api-client.test.ts`: shared HTTP behavior.
+- `src/test-utils/`: shared test setup and route inspection helpers.
+
 Playwright tests verify the real Auth flow using a separate Docker stack
 and database. See the [E2E guide](../e2e/README.md) for running them.
 
-## Shared API Client
+## HTTP Utilities
 
-Use the helpers in `src/shared/api/api-client.ts`:
+Keep these responsibilities separate:
 
-| Helper | Use |
-| --- | --- |
-| `apiClient(path, options?)` | Returns the raw response, including empty `204` responses. |
-| `apiJson<T>(path, options?)` | Reads a JSON response. |
-| `apiPostJson<T>(path, data)` | Sends JSON with POST and reads a JSON response. |
+- `shared/src/api/*.types.ts` (repository root): API types used by frontend and backend.
+- `frontend/src/api/`: feature-specific requests such as `getTrips()` and `login()`.
+- `frontend/src/lib/http/`: reusable frontend request and error-handling utilities.
+
+Use the helpers in `src/lib/http/api-client.ts`:
+
+| Helper                       | Use                                                        |
+| ---------------------------- | ---------------------------------------------------------- |
+| `apiClient(path, options?)`  | Returns the raw response, including empty `204` responses. |
+| `apiJson<T>(path, options?)` | Reads a JSON response.                                     |
+| `apiPostJson<T>(path, data)` | Sends JSON with POST and reads a JSON response.            |
 
 Pass paths such as `/auth/me`; the client adds `/api` and uses same-origin
 cookie credentials. Type `T` describes the expected data without runtime validation.
@@ -82,7 +120,7 @@ English is the only current language; language switching is not included.
 ```tsx
 import { t } from '../shared/i18n/translation'
 
-<h1>{t('auth.login.title')}</h1>
+;<h1>{t('auth.login.title')}</h1>
 ```
 
 Adjust the import path for your file. Add new keys under the matching comment
@@ -112,9 +150,9 @@ Example from a page in `src/pages/`:
 import { PageContainer } from '../components/layout/PageContainer'
 import { AuthHeader } from '../components/layout/AuthHeader'
 
-<PageContainer className="space-y-4">
-  <AuthHeader />
-  {/* Page content goes here. */}
+;<PageContainer className="space-y-4">
+    <AuthHeader />
+    {/* Page content goes here. */}
 </PageContainer>
 ```
 
@@ -126,18 +164,18 @@ Components live in `src/components/ui/`. Button, Input, Textarea, Select,
 Card, and Badge accept native HTML attributes. EmptyState, Modal, Tabs,
 and Toast use the explicit props below.
 
-| Component | Props and behavior |
-| --- | --- |
-| `Button` | `variant`: `primary` (default), `secondary`, or `danger`; `isLoading` disables interaction and shows a centered spinner while preserving button dimensions and its accessible name. `disabled` uses the shared disabled colors. Defaults to `type="button"`. |
-| `Input` | Required `label`, optional `error`; supports `value`/`onChange`, `disabled`, and `readOnly`. Associates labels and error messages with the input. |
-| `Textarea` | Required `label`, optional `error`; defaults to 4 rows and disables manual resizing. Supports `value`/`onChange`, `disabled`, and `readOnly`, with labels and errors associated with the control. |
-| `Select` | Required `label`, optional `error`; accepts native `<option>` children, `value`/`onChange`, and `disabled`. Uses the browser's dropdown and keyboard behavior; no `readOnly` support. |
-| `Card` | A non-interactive container with shared padding, border, radius, and shadow. Place content and action controls inside it. |
-| `Badge` | Non-interactive label. `variant`: `neutral` (default), `success`, `warning`, `danger`, or `info`. Pass the label as children; pages choose the variant. |
-| `EmptyState` | Required `title`; optional `description`, `action` (React content), and `className`. Displays a centered empty-content message. |
-| `Modal` | `open`, `onClose`, `title`, and `children`; optional `footer`. Uses a native dialog with a close button and Escape support. |
-| `Tabs` | `label`, `items`, `value`, and `onValueChange`. Each item has `value`, `label`, and `content`. Supports mouse selection and left/right arrow keys. |
-| `Toast` | `open`, `message`, and `onClose`; optional `variant`: `info` (default), `success`, `warning`, or `danger`. Optional `autoCloseMs` enables timed dismissal; omitted or `0` means manual close. |
+| Component    | Props and behavior                                                                                                                                                                                                                                           |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `Button`     | `variant`: `primary` (default), `secondary`, or `danger`; `isLoading` disables interaction and shows a centered spinner while preserving button dimensions and its accessible name. `disabled` uses the shared disabled colors. Defaults to `type="button"`. |
+| `Input`      | Required `label`, optional `error`; supports `value`/`onChange`, `disabled`, and `readOnly`. Associates labels and error messages with the input.                                                                                                            |
+| `Textarea`   | Required `label`, optional `error`; defaults to 4 rows and disables manual resizing. Supports `value`/`onChange`, `disabled`, and `readOnly`, with labels and errors associated with the control.                                                            |
+| `Select`     | Required `label`, optional `error`; accepts native `<option>` children, `value`/`onChange`, and `disabled`. Uses the browser's dropdown and keyboard behavior; no `readOnly` support.                                                                        |
+| `Card`       | A non-interactive container with shared padding, border, radius, and shadow. Place content and action controls inside it.                                                                                                                                    |
+| `Badge`      | Non-interactive label. `variant`: `neutral` (default), `success`, `warning`, `danger`, or `info`. Pass the label as children; pages choose the variant.                                                                                                      |
+| `EmptyState` | Required `title`; optional `description`, `action` (React content), and `className`. Displays a centered empty-content message.                                                                                                                              |
+| `Modal`      | `open`, `onClose`, `title`, and `children`; optional `footer`. Uses a native dialog with a close button and Escape support.                                                                                                                                  |
+| `Tabs`       | `label`, `items`, `value`, and `onValueChange`. Each item has `value`, `label`, and `content`. Supports mouse selection and left/right arrow keys.                                                                                                           |
+| `Toast`      | `open`, `message`, and `onClose`; optional `variant`: `info` (default), `success`, `warning`, or `danger`. Optional `autoCloseMs` enables timed dismissal; omitted or `0` means manual close.                                                                |
 
 ```tsx
 import { useState } from 'react'
@@ -146,22 +184,22 @@ import { Card } from './components/ui/Card'
 import { Input } from './components/ui/Input'
 
 export function Example() {
-  const [email, setEmail] = useState('')
+    const [email, setEmail] = useState('')
 
-  return (
-    <Card className="space-y-4">
-      <Input
-        label="Email"
-        type="email"
-        name="email"
-        value={email}
-        onChange={(event) => setEmail(event.currentTarget.value)}
-      />
-      <Button variant="secondary" disabled={!email.trim()}>
-        Example action
-      </Button>
-    </Card>
-  )
+    return (
+        <Card className="space-y-4">
+            <Input
+                label="Email"
+                type="email"
+                name="email"
+                value={email}
+                onChange={(event) => setEmail(event.currentTarget.value)}
+            />
+            <Button variant="secondary" disabled={!email.trim()}>
+                Example action
+            </Button>
+        </Card>
+    )
 }
 ```
 

@@ -19,15 +19,9 @@ const dialogStyles = [
 
 // Close button dimensions, focus, and hover appearance.
 const closeStyles =
-    "tc-focus inline-flex h-control w-control shrink-0 items-center justify-center rounded-control text-muted hover:bg-surface-secondary"
+    'tc-focus inline-flex h-control w-control shrink-0 items-center justify-center rounded-control text-muted hover:bg-surface-secondary'
 
-export function Modal({
-    open,
-    onClose,
-    title,
-    children,
-    footer,
-}: ModalProps) {
+export function Modal({ open, onClose, title, children, footer }: ModalProps) {
     const dialogRef = useRef<HTMLDialogElement>(null)
     const titleId = useId()
 
@@ -71,9 +65,7 @@ export function Modal({
                 </button>
             </header>
 
-            <div className="mt-4">
-                {children}
-            </div>
+            <div className="mt-4">{children}</div>
 
             {footer && (
                 <div className="mt-6 flex flex-wrap justify-end gap-3">

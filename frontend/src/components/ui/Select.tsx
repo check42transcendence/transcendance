@@ -57,17 +57,14 @@ export function Select({
     const errorId = `${selectId}-error`
     const validationStyles = error ? errorStyles : normalStyles
 
-    const describedBy = [
-        props['aria-describedby'],
-        error ? errorId : undefined,
-    ].filter(Boolean).join(' ') || undefined
+    const describedBy =
+        [props['aria-describedby'], error ? errorId : undefined]
+            .filter(Boolean)
+            .join(' ') || undefined
 
     return (
         <div className={fieldLayoutStyles}>
-            <label
-                htmlFor={selectId}
-                className={labelStyles}
-            >
+            <label htmlFor={selectId} className={labelStyles}>
                 {label}
             </label>
 

@@ -1,5 +1,5 @@
-import { useId } from "react";
-import type { ComponentProps } from "react";
+import { useId } from 'react'
+import type { ComponentProps } from 'react'
 
 type InputProps = ComponentProps<'input'> & {
     label: string
@@ -55,10 +55,10 @@ export function Input({
     const errorId = `${inputId}-error`
     const validationStyles = error ? errorStyles : normalStyles
 
-    const describedBy = [
-        props['aria-describedby'],
-        error ? errorId : undefined,
-    ].filter(Boolean).join(' ') || undefined
+    const describedBy =
+        [props['aria-describedby'], error ? errorId : undefined]
+            .filter(Boolean)
+            .join(' ') || undefined
 
     return (
         <div className={fieldLayoutStyles}>

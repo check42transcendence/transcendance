@@ -15,6 +15,8 @@ proposals, voting, and real-time collaboration.
 Currently implemented:
 
 - React/TypeScript frontend with Vite, Auth pages, and protected routing.
+- Home Trip list and creation form connected to the backend, with loading,
+  validation, and request-error feedback.
 - Shared UI tokens and reusable form controls, cards, modals, tabs, and notifications using
   Tailwind CSS v4, Inter, and Lucide. See the [frontend guide](frontend/README.md)
   for component usage and styling conventions.
@@ -22,7 +24,8 @@ Currently implemented:
 - Auth APIs for registration, login, current-user lookup, and logout, using
   PostgreSQL, bcrypt password hashing, and JWT authentication cookies.
 - PostgreSQL with persistent storage and Prisma database integration.
-- Trip, membership, and itinerary-day database models, migrations, and constraint tests.
+- Trip, membership, itinerary-day, Proposal, and ProposalVote database models,
+  migrations, and constraint tests. Proposal APIs and UI are still pending.
 - Authenticated Trip creation with automatic Owner/Days, plus member-scoped list,
   detail, and Days APIs.
 - Owner-only Trip deletion, cleaning up memberships and Days while preserving users
@@ -36,9 +39,9 @@ Currently implemented:
 Auth connects the frontend, backend, and database. Registration does not
 log the user in; login sets a Secure, HttpOnly cookie. Logout clears the
 cookie without revoking issued JWTs.
-`/home` is a temporary Auth verification page, not the final travel workspace.
-
-Travel pages and real-time collaboration are not implemented yet.
+`/home` lists the current user's trips; `/trips/new` creates a Trip.
+The Workspace route is currently a placeholder. Workspace details, deletion UI,
+and real-time collaboration are not implemented yet.
 See the [P0 database design](docs/database/p0-database-erd.md) for the target
 structure and current implementation status.
 
@@ -50,6 +53,7 @@ and publicly trusted certificates are not configured yet.
 - `frontend/`: React application, frontend Dockerfile, and Nginx configuration.
 - `backend/`: NestJS application, Prisma configuration and schema, and
   backend Dockerfile.
+- `shared/`: Auth/Trip API types shared by the frontend and backend.
 - `compose.yml`: frontend, backend, PostgreSQL, and a one-shot migration service.
 - `e2e/`: Playwright tests, configuration, and test runner Dockerfile.
 - `compose.e2e.yml` and `.env.e2e.example`: isolated browser test environment.
@@ -168,6 +172,18 @@ nvm install
 nvm use
 ```
 
+Build the shared types first, before starting either frontend or backend:
+
+```bash
+cd shared
+npm ci
+npm run build
+cd ..
+```
+
+Rebuild `shared` after pulling or editing shared types. Compose and CI perform
+this step automatically.
+
 The complete backend requires a reachable PostgreSQL database,
 `DATABASE_URL`, and `JWT_SECRET`. Use the containerized application workflow above to run
 the integrated frontend, backend, and database stack.
@@ -219,6 +235,18 @@ Set `API_PROXY_TARGET` to use a backend reachable at another address.
 
 ## Validation
 
+### Shared types:
+
+Run from the repository root before the frontend/backend checks:
+
+```bash
+cd shared
+npm ci
+npm run typecheck
+npm run build
+cd ..
+```
+
 ### Frontend:
 
 ```bash
@@ -242,7 +270,7 @@ npm test
 ```
 
 `npm run test:e2e` also requires a reachable, migrated PostgreSQL database.
-Replace the example `DATABASE_URL` with a real test database URL before running it.
+Its `DATABASE_URL` must name a dedicated database ending in `_test` before running it.
 
 ### Database integration tests
 
@@ -299,6 +327,7 @@ protected-route redirects using a separate test database. See the
 GitHub Actions runs the following jobs for pull requests targeting
 `main` and for pushes to `main`:
 
+- `Shared checks`: dependency installation, shared type checks, and build.
 - `Frontend checks`: dependency installation, lint, build, and unit tests.
 - `Backend checks`: dependency installation, Prisma schema validation,
   Prisma Client generation, database integration tests, lint, build, unit tests,

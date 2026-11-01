@@ -13,8 +13,7 @@ type ToastProps = {
 }
 
 // Keeps the notification near the bottom-right corner.
-const positionStyles =
-    'fixed bottom-4 right-4 z-50 w-[90vw] max-w-sm'
+const positionStyles = 'fixed bottom-4 right-4 z-50 w-[90vw] max-w-sm'
 
 // Notification surface, spacing, and alignment.
 const toastStyles =
@@ -37,7 +36,7 @@ export function Toast({
     message,
     onClose,
     variant = 'info',
-    autoCloseMs = 0
+    autoCloseMs = 0,
 }: ToastProps) {
     // Calls the latest close handler from the timer.
     const closeFromTimer = useEffectEvent(() => {
@@ -60,8 +59,8 @@ export function Toast({
     }, [open, message, autoCloseMs])
 
     const appearanceStyles = open
-    ? `${toastStyles} ${variantStyles[variant]}`
-    : ''
+        ? `${toastStyles} ${variantStyles[variant]}`
+        : ''
 
     return (
         <div className={`${positionStyles} ${appearanceStyles}`}>

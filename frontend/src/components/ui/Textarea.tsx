@@ -57,17 +57,14 @@ export function Textarea({
     const errorId = `${textareaId}-error`
     const validationStyles = error ? errorStyles : normalStyles
 
-    const describedBy = [
-        props['aria-describedby'],
-        error ? errorId : undefined,
-    ].filter(Boolean).join(' ') || undefined
+    const describedBy =
+        [props['aria-describedby'], error ? errorId : undefined]
+            .filter(Boolean)
+            .join(' ') || undefined
 
     return (
         <div className={fieldLayoutStyles}>
-            <label
-                htmlFor={textareaId}
-                className={labelStyles}
-            >
+            <label htmlFor={textareaId} className={labelStyles}>
                 {label}
             </label>
 

@@ -26,19 +26,14 @@ const inactiveTabStyles =
     'border-transparent text-muted hover:bg-surface-secondary hover:text-ink'
 
 // Displays controlled tabs and their associated content panels.
-export function Tabs({
-    label,
-    items,
-    value,
-    onValueChange,
-}: TabsProps) {
+export function Tabs({ label, items, value, onValueChange }: TabsProps) {
     const tabsId = useId()
     const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
 
     // Moves focus and selection between tabs with the arrow keys.
     function handleKeyDown(
         event: KeyboardEvent<HTMLButtonElement>,
-        index: number
+        index: number,
     ) {
         let nextIndex: number
 
@@ -58,11 +53,7 @@ export function Tabs({
 
     return (
         <div>
-            <div
-                role="tablist"
-                aria-label={label}
-                className={tabListStyles}
-            >
+            <div role="tablist" aria-label={label} className={tabListStyles}>
                 {items.map((item, index) => (
                     <button
                         key={item.value}
@@ -77,7 +68,9 @@ export function Tabs({
                         }}
                         onKeyDown={(event) => handleKeyDown(event, index)}
                         className={`${tabStyles} ${
-                            item.value === value ? activeTabStyles : inactiveTabStyles
+                            item.value === value
+                                ? activeTabStyles
+                                : inactiveTabStyles
                         }`}
                         onClick={() => onValueChange(item.value)}
                     >

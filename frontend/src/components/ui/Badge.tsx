@@ -2,7 +2,7 @@ import type { ComponentProps } from 'react'
 
 type BadgeVariant = 'neutral' | 'success' | 'warning' | 'danger' | 'info'
 
-type BadgeProps = ComponentProps<'span'> & {variant?: BadgeVariant}
+type BadgeProps = ComponentProps<'span'> & { variant?: BadgeVariant }
 
 // Compact shape, spacing, and typography.
 const baseStyles =
@@ -20,8 +20,8 @@ const variantStyles = {
 // Displays a non-interactive label with a semantic visual variant.
 export function Badge({
     children,
-    variant='neutral',
-    className='',
+    variant = 'neutral',
+    className = '',
     ...props
 }: BadgeProps) {
     const appearanceStyles = variantStyles[variant]

@@ -47,7 +47,7 @@ it('returns the user after successful registration', async () => {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify(registerInput),
-        credentials: 'same-origin'
+        credentials: 'same-origin',
     })
 })
 
@@ -117,7 +117,7 @@ it('returns the user after successful login', async () => {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify(loginInput),
-        credentials: 'same-origin'
+        credentials: 'same-origin',
     })
 })
 
@@ -127,8 +127,8 @@ it('rejects login with invalid credentials', async () => {
         new Response(
             JSON.stringify({
                 error: {
-                    code: "INVALID_CREDENTIALS",
-                    message: "Invalid email or password",
+                    code: 'INVALID_CREDENTIALS',
+                    message: 'Invalid email or password',
                     details: {},
                 },
             }),
@@ -142,8 +142,8 @@ it('rejects login with invalid credentials', async () => {
     )
     vi.stubGlobal('fetch', fakeFetch)
     await expect(login(loginInput)).rejects.toMatchObject({
-        code: "INVALID_CREDENTIALS",
-        message: "Invalid email or password",
+        code: 'INVALID_CREDENTIALS',
+        message: 'Invalid email or password',
     })
 })
 
@@ -167,7 +167,7 @@ it('returns the current user', async () => {
     expect(result).toEqual(expected)
     expect(fakeFetch).toHaveBeenCalledTimes(1)
     expect(fakeFetch).toHaveBeenCalledWith('/api/auth/me', {
-        credentials: 'same-origin'
+        credentials: 'same-origin',
     })
 })
 
@@ -208,7 +208,7 @@ it('logs out successfully with an empty response', async () => {
     expect(fakeFetch).toHaveBeenCalledTimes(1)
     expect(fakeFetch).toHaveBeenCalledWith('/api/auth/logout', {
         method: 'POST',
-        credentials: 'same-origin'
+        credentials: 'same-origin',
     })
 })
 

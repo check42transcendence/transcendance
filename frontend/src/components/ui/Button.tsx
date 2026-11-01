@@ -1,5 +1,5 @@
-import type { ComponentProps } from "react";
-import { LoaderCircle } from "lucide-react";
+import type { ComponentProps } from 'react'
+import { LoaderCircle } from 'lucide-react'
 
 type ButtonVariant = 'primary' | 'secondary' | 'danger'
 
@@ -74,9 +74,7 @@ export function Button({
     ...props
 }: ButtonProps) {
     const isDisabled = disabled || isLoading
-    const appearanceStyles = disabled
-        ? disabledStyles
-        : variantStyles[variant]
+    const appearanceStyles = disabled ? disabledStyles : variantStyles[variant]
 
     return (
         <button
