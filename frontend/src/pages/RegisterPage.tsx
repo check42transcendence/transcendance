@@ -71,7 +71,7 @@ export function RegisterPage({
     }
 
     return (
-        <PageContainer>
+        <PageContainer size="compact">
             <AuthHeader />
 
             <Card className="space-y-5">

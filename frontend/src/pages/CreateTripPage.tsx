@@ -84,7 +84,7 @@ export function CreateTripPage() {
     }
 
     return (
-        <PageContainer>
+        <PageContainer size="compact">
             <h1>{t('trips.create.title')}</h1>
 
             <form onSubmit={handleSubmit} noValidate className="mt-6 space-y-4">
