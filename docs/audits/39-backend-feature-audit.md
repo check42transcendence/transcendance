@@ -1,10 +1,13 @@
 # Backend Feature Audit — Issue #39
 
-**Status:** Completed (documentation audit; PR review/merge pending)  
+**Status:** Completed documentation audit; merged in PR #54\
 **Parent:** [#36 — Backend Feature Foundation](https://github.com/check42transcendence/transcendence/issues/36)  
 **Issue:** [#39 — Audit Backend Feature Structure](https://github.com/check42transcendence/transcendence/issues/39)  
 **Baseline:** `main`, following the merge of [Auth PR #15](https://github.com/check42transcendence/transcendence/pull/15) (2026-10-21) and [Database Test PR #35](https://github.com/check42transcendence/transcendence/pull/35) (2026-10-20)  
 **Review date:** 2026-10-22
+
+This is a historical audit of the baseline below. Findings and follow-up text
+record that snapshot; use the current backend guide and source for today's status.
 
 ## 1. Purpose and Scope
 

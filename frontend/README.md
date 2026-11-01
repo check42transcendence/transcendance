@@ -8,9 +8,15 @@ Use the Node.js version in the repository's `.nvmrc`. From `frontend/`
 in your development environment (the Ubuntu development container if used):
 
 ```bash
+cd ../shared
+npm ci
+npm run build
+cd ../frontend
 npm ci
 npm run dev
 ```
+
+Rebuild `shared` after pulling or editing shared types.
 
 Open `http://localhost:5173`. Vite updates the page when source files change.
 The `/api` proxy defaults to `http://127.0.0.1:3000`; set `API_PROXY_TARGET`

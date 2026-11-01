@@ -9,10 +9,12 @@ For Docker, HTTPS, and environment setup, see the [project README](../README.md)
 - `src/auth/`: registration, login, JWT cookies, and authentication guards.
 - `src/users/`: user persistence and database conflict handling.
 - `src/database/`: shared Prisma connection.
+- `src/trips/`: authenticated Trip creation, reads, and owner-only deletion.
+- `../shared/`: public Auth/Trip API types; DTOs retain runtime validation.
 - `prisma/`: database schema and committed migrations.
 - `test/`: end-to-end and database integration tests.
 
-Request flow: Controller → Service → Repository → PostgreSQL.
+Request flow: Controller → Service → PostgreSQL, using a Repository or PrismaService.
 Modules connect these components through dependency injection.
 
 ## Auth endpoints
@@ -41,12 +43,17 @@ Compose supplies these variables and applies committed migrations before the
 backend starts. The commands below are for running the backend outside Compose.
 
 ```bash
+cd ../shared
+npm ci
+npm run build
+cd ../backend
 npm ci
 npm run prisma:generate
 npm run prisma:migrate:deploy
 npm run start:dev
 ```
 
+After pulling shared-type changes, rebuild `shared`.
 After pulling schema changes, regenerate Prisma Client. Apply any new committed
 migrations before using the updated backend. Generated files in
 `src/generated/` are ignored by Git.
@@ -54,8 +61,9 @@ migrations before using the updated backend. Generated files in
 
 ## Trips
 
-Implemented models: `User`, `Trip`, `TripMember`, and `ItineraryDay`.
-See the [P0 database design](../docs/database/p0-database-erd.md) for future tables.
+Trip models: `Trip`, `TripMember`, and `ItineraryDay`, linked to `User`.
+`Proposal` and `ProposalVote` models are also implemented; their APIs are pending.
+See the [P0 database design](../docs/database/p0-database-erd.md) for the full target.
 
 All Trip endpoints require authentication:
 
@@ -80,8 +88,8 @@ Migrations enforce valid Trip dates, positive Day numbers, unique memberships
 and Day numbers/dates, and at most one Owner per Trip. Deleting a Trip cascades
 to its memberships and Days while preserving users. The CHECK constraints and
 Owner partial unique index are defined in migration SQL; preserve them in future migrations.
-Cleanup of Invitations, Activities, Proposals, and Votes must be integrated and
-verified as those models become available.
+Proposal/Vote cascade cleanup is covered by `test/database/proposal.db-spec.ts`.
+Invitation and Activity cleanup must be integrated as those models become available.
 
 Trip tests use the commands below:
 

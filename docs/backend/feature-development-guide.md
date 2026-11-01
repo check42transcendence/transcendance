@@ -2,7 +2,7 @@
 
 **Issue:** [#42 — Document & Validate Backend Feature Foundation](https://github.com/check42transcendence/transcendence/issues/42)  
 **Audience:** Backend developers and Vertical Slice Owners  
-**Status:** Complete — backend guide reviewed and CI-validated in PR #74; awaiting final PR approval and merge.
+**Status:** Complete — backend guide merged in PR #74. Validation records describe that PR snapshot.
 
 ## 1. Before You Start
 
@@ -451,7 +451,9 @@ For stateful features, add real PostgreSQL integration tests for the contract-re
 
 ### 10.1 Backend commands
 
-Run from `backend/`, with the correct environment variables:
+Build `shared/` first after pulling or editing shared types (see the
+[project setup](../../README.md#local-development)). Then run from `backend/`,
+with the correct environment variables:
 
 ```bash
 npm run prisma:validate

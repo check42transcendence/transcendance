@@ -3,6 +3,7 @@
 Playwright runs Chromium against the real frontend, backend, and PostgreSQL.
 The Auth test covers registration, login, session restoration after refresh,
 logout, and redirecting unauthenticated users away from `/home`.
+`validation.spec.ts` also checks invalid Auth requests through the API.
 
 ## Run locally
 
@@ -41,7 +42,7 @@ docker compose \
   run --build --rm --no-deps -T e2e
 ```
 
-Expect `1 passed`. Chromium runs without a visible window.
+Expect all tests to pass. Chromium runs without a visible window.
 `--rm` removes only the temporary test runner container.
 
 ## Test environment
