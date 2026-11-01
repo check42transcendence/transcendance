@@ -34,7 +34,7 @@ Currently implemented:
   and other Trips.
 - Docker Compose stack with service health checks and a non-root backend.
 - Nginx gateway with local HTTPS and HTTP-to-HTTPS redirection.
-- Playwright browser tests for the complete Auth flow in an isolated Docker stack.
+- Playwright browser tests for Auth and the core Trip lifecycle in an isolated Docker stack.
 - GitHub Actions checks for the frontend, backend, Prisma, container stack,
   and browser E2E tests.
 
@@ -321,8 +321,8 @@ Expect HTTP `308` with an HTTPS redirect, followed by HTTPS `200` and
 
 ### Browser E2E tests
 
-Playwright verifies registration, login, session restoration, logout, and
-protected-route redirects using a separate test database. See the
+Playwright verifies Auth and the Trip lifecycle: creation, Workspace refresh,
+and confirmed deletion with an updated Home list. Tests use a separate database. See the
 [E2E guide](e2e/README.md) for Docker commands, failure records, and cleanup.
 
 ## Continuous Integration
@@ -338,7 +338,7 @@ GitHub Actions runs the following jobs for pull requests targeting
 - `Container checks`: temporary certificate generation, Compose validation,
   image builds, health checks, HTTP redirection, and HTTPS page/API checks.
 - `Browser E2E checks`: isolated test stack, automatic migrations, Chromium
-  Auth tests, failure trace upload, and test environment cleanup.
+  Auth and Trip tests, failure trace upload, and test environment cleanup.
 
 ## Resources
 

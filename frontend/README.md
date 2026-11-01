@@ -90,8 +90,8 @@ Frontend tests are grouped by responsibility:
 - `src/lib/http/api-client.test.ts`: shared HTTP behavior.
 - `src/test-utils/`: shared test setup and route inspection helpers.
 
-Playwright tests verify the real Auth flow using a separate Docker stack
-and database. See the [E2E guide](../e2e/README.md) for running them.
+Playwright tests verify the real Auth and Trip lifecycle flows using a separate
+Docker stack and database. See the [E2E guide](../e2e/README.md) for running them.
 
 ## HTTP Utilities
 

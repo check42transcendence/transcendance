@@ -1,9 +1,15 @@
 # Browser E2E Tests
 
 Playwright runs Chromium against the real frontend, backend, and PostgreSQL.
-The Auth test covers registration, login, session restoration after refresh,
-logout, and redirecting unauthenticated users away from `/home`.
-`validation.spec.ts` also checks invalid Auth requests through the API.
+- `auth.spec.ts`: registration, login, session restoration, logout, and protected-route redirects.
+- `trips.spec.ts`: login, Trip creation, Owner/Days display, Workspace refresh,
+  deletion cancellation, confirmed deletion, and the updated Home list after refresh.
+- `validation.spec.ts`: invalid Auth requests through the API.
+
+Keep browser tests focused on core user journeys. Detailed validation, membership
+permissions, atomic Trip creation, and database cleanup are covered by frontend
+and backend Vitest tests. Activity and Invitation cleanup must be verified when
+those models are integrated.
 
 ## Run locally
 
@@ -32,7 +38,7 @@ Compose starts the test database, applies committed migrations, and waits
 for the backend and frontend to become healthy. The migration container
 normally exits with code `0` after completing its task.
 
-Run the browser test:
+Run all browser tests:
 
 ```bash
 docker compose \
@@ -52,7 +58,7 @@ Expect all tests to pass. Chromium runs without a visible window.
 - The test runner accesses `https://frontend` inside the test network.
   For manual checks, the Mac host can use `https://localhost:9443`.
 - Self-signed certificate errors are ignored by the test browser only.
-- Each run creates a uniquely named account. Local accounts remain until
+- Auth and Trip tests each create a uniquely named account. Test accounts remain until
   the test database volume is removed.
 
 The Docker workflow does not require connecting your development container
