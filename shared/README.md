@@ -3,10 +3,12 @@
 The `shared/` package contains TypeScript types shared between the frontend and backend.
 
 Use it as the single source of truth for API request payloads, response objects, and common data structures.
+Files such as `api/trips.types.ts` contain types; frontend request functions
+remain in `frontend/src/api/trips.ts`. Consumers import from `@tripcollab/shared`.
 
 ## Usage
 
-1. Add shared types under `shared/src/`.
+1. Add shared API types under `shared/src/api/` using the `*.types.ts` suffix.
 2. Export them from `shared/src/index.ts`.
 3. Import them in frontend and backend:
 

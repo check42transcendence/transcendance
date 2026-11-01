@@ -150,3 +150,127 @@ it('preserves input and restores submission when creation fails', async () => {
 
     expect(screen.getByLabelText('Current path').textContent).toBe('/trips/new')
 })
+
+// Reject reversed dates before sending a creation request.
+it('blocks creation when the end date precedes the start date', () => {
+    const fakeFetch = vi.fn()
+
+    vi.stubGlobal('fetch', fakeFetch)
+
+    render(
+        <MemoryRouter initialEntries={['/trips/new']}>
+            <CreateTripPage />
+        </MemoryRouter>,
+    )
+
+    fireEvent.change(screen.getByLabelText('Trip title'), {
+        target: { value: 'Paris weekend' },
+    })
+
+    fireEvent.change(screen.getByLabelText('Trip destination'), {
+        target: { value: 'Paris' },
+    })
+
+    fireEvent.change(screen.getByLabelText('Start date'), {
+        target: { value: '2026-11-04' },
+    })
+
+    fireEvent.change(screen.getByLabelText('End date'), {
+        target: { value: '2026-11-03' },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create trip' }))
+
+    expect(screen.getByRole('alert').textContent).toBe(
+        'End date must not be earlier than start date.',
+    )
+
+    expect(fakeFetch).not.toHaveBeenCalled()
+})
+
+// Allow a trip lasting exactly 365 days, including both endpoints.
+it('allows creation of a trip lasting exactly 365 days', async () => {
+    const fakeFetch = vi.fn().mockResolvedValue(
+        new Response(
+            JSON.stringify({
+                trip: {
+                    id: 'year-trip-id',
+                },
+            }),
+            {
+                status: 201,
+                headers: { 'Content-Type': 'application/json' },
+            },
+        ),
+    )
+
+    vi.stubGlobal('fetch', fakeFetch)
+
+    render(
+        <MemoryRouter initialEntries={['/trips/new']}>
+            <CreateTripPage />
+            <CurrentPath />
+        </MemoryRouter>,
+    )
+
+    fireEvent.change(screen.getByLabelText('Trip title'), {
+        target: { value: 'Year trip' },
+    })
+
+    fireEvent.change(screen.getByLabelText('Trip destination'), {
+        target: { value: 'Paris' },
+    })
+
+    fireEvent.change(screen.getByLabelText('Start date'), {
+        target: { value: '2027-01-01' },
+    })
+
+    fireEvent.change(screen.getByLabelText('End date'), {
+        target: { value: '2027-12-31' },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create trip' }))
+
+    await screen.findByText('/trips/year-trip-id', {
+        selector: 'output',
+    })
+
+    expect(fakeFetch).toHaveBeenCalledTimes(1)
+})
+
+// Reject trips exceeding 365 days before sending a creation request.
+it('blocks creation of a trip lasting 366 days', () => {
+    const fakeFetch = vi.fn()
+
+    vi.stubGlobal('fetch', fakeFetch)
+
+    render(
+        <MemoryRouter initialEntries={['/trips/new']}>
+            <CreateTripPage />
+        </MemoryRouter>,
+    )
+
+    fireEvent.change(screen.getByLabelText('Trip title'), {
+        target: { value: 'Year trip' },
+    })
+
+    fireEvent.change(screen.getByLabelText('Trip destination'), {
+        target: { value: 'Paris' },
+    })
+
+    fireEvent.change(screen.getByLabelText('Start date'), {
+        target: { value: '2027-01-01' },
+    })
+
+    fireEvent.change(screen.getByLabelText('End date'), {
+        target: { value: '2028-01-01' },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create trip' }))
+
+    expect(screen.getByRole('alert').textContent).toBe(
+        'A trip must not exceed 365 days.',
+    )
+
+    expect(fakeFetch).not.toHaveBeenCalled()
+})

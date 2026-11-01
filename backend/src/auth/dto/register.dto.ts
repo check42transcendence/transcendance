@@ -7,7 +7,6 @@ import {
   MaxLength,
   MinLength,
   IsByteLength,
-  isMongoId,
 } from 'class-validator';
 
 // Validates registration fields and trims email and username.

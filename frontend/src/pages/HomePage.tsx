@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
-import { getTrips, type TripSummary } from '../api/trips'
+import { getTrips } from '../api/trips'
+import type { TripSummary } from '@tripcollab/shared'
 import { PageContainer } from '../components/layout/PageContainer'
 import { Button } from '../components/ui/Button'
 import { EmptyState } from '../components/ui/EmptyState'

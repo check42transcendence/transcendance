@@ -10,7 +10,7 @@ import { register, login, getMe, logout } from './api/auth'
 
 import type { RegisterInput, LoginInput, CurrentUser } from '@tripcollab/shared'
 
-import { ApiError } from './shared/api/api-error'
+import { ApiError } from './lib/http/api-error'
 import { t } from './shared/i18n/translation'
 
 function App() {

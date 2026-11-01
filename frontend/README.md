@@ -75,15 +75,21 @@ Frontend tests are grouped by responsibility:
 - `src/App.test.tsx`: routing, session restoration, and logout.
 - `src/pages/*.test.tsx`: page tests, including login and registration flows through App.
 - `src/api/auth.test.ts`: Auth API requests and responses.
-- `src/shared/api/api-client.test.ts`: shared HTTP behavior.
+- `src/lib/http/api-client.test.ts`: shared HTTP behavior.
 - `src/test-utils/`: shared test setup and route inspection helpers.
 
 Playwright tests verify the real Auth flow using a separate Docker stack
 and database. See the [E2E guide](../e2e/README.md) for running them.
 
-## Shared API Client
+## HTTP Utilities
 
-Use the helpers in `src/shared/api/api-client.ts`:
+Keep these responsibilities separate:
+
+- `shared/src/api/*.types.ts` (repository root): API types used by frontend and backend.
+- `frontend/src/api/`: feature-specific requests such as `getTrips()` and `login()`.
+- `frontend/src/lib/http/`: reusable frontend request and error-handling utilities.
+
+Use the helpers in `src/lib/http/api-client.ts`:
 
 | Helper                       | Use                                                        |
 | ---------------------------- | ---------------------------------------------------------- |

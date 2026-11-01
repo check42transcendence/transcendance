@@ -5,14 +5,10 @@ import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Input } from '../components/ui/Input'
 import { t } from '../shared/i18n/translation'
-
-type LoginCredentials = {
-    email: string
-    password: string
-}
+import type { LoginInput } from '@tripcollab/shared'
 
 type LoginPageProps = {
-    onSubmit: (credentials: LoginCredentials) => Promise<void>
+    onSubmit: (credentials: LoginInput) => Promise<void>
     loading?: boolean
     error?: string
     onRegisterClick: () => void

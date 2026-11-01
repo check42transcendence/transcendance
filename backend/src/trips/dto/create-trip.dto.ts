@@ -7,9 +7,10 @@ import {
   MaxLength,
   IsOptional,
 } from 'class-validator';
+import type { CreateTripInput } from '@tripcollab/shared';
 
 // Validates input for creating a trip.
-export class CreateTripDto {
+export class CreateTripDto implements CreateTripInput {
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value,
   )
