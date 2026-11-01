@@ -15,6 +15,21 @@ enum MemberRole {
   @@map("member_role")
 }
 
+enum ProposalStatus {
+  PENDING
+  ACCEPTED
+
+  @@map("proposal_status")
+}
+
+enum VoteDecision {
+  AGREE
+  REJECT
+
+  @@map("vote_decision")
+}
+
+
 model User {
   id           String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email        String       @db.VarChar(254)
@@ -23,6 +38,8 @@ model User {
   createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   createdTrips Trip[]       @relation("TripCreator")
   memberships  TripMember[]
+  createdProposals Proposal[]     @relation("ProposalCreator")
+  proposalVotes    ProposalVote[]
 
   @@map("user")
 }
@@ -39,6 +56,7 @@ model Trip {
   creator     User           @relation("TripCreator", fields: [createdBy], references: [id])
   members     TripMember[]
   days        ItineraryDay[]
+  proposals   Proposal[]
 
   @@map("trip")
 }
@@ -69,3 +87,38 @@ model ItineraryDay {
   @@unique([tripId, date])
   @@map("itinerary_day")
 }
+
+
+model Proposal {
+  id          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tripId      String         @map("trip_id") @db.Uuid
+  title       String         @db.VarChar(160)
+  description String?        @db.Text
+  status      ProposalStatus @default(PENDING)
+  createdBy   String         @map("created_by") @db.Uuid
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  trip        Trip            @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  creator     User            @relation("ProposalCreator", fields: [createdBy], references: [id])
+  votes       ProposalVote[]
+
+  @@index([tripId])
+  @@map("proposal")
+}
+
+
+model ProposalVote {
+  id         String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  proposalId String       @map("proposal_id") @db.Uuid
+  userId     String       @map("user_id") @db.Uuid
+  decision   VoteDecision
+  votedAt    DateTime     @default(now()) @map("voted_at") @db.Timestamptz(6)
+
+  proposal   Proposal     @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  user       User         @relation(fields: [userId], references: [id])
+
+  @@unique([proposalId, userId])
+  @@index([userId])
+  @@map("proposal_vote")
+}
+
