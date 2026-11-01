@@ -46,7 +46,7 @@ npm run build
 - `/login` and `/register` show the Auth pages.
 - `/home` shows the current user's trips and a sign-out button.
 - `/trips/new` shows the trip creation form.
-- `/trips/:tripId` is a Workspace placeholder; details and deletion UI follow in #84.
+- `/trips/:tripId` shows Trip details, membership role, Days, and Owner-only deletion.
 - These three routes require sign-in; unauthenticated users are redirected to `/login`.
 - Unknown paths show the not-found page.
 
@@ -61,6 +61,11 @@ Creation requires a title, destination, and dates; description is optional.
 Dates must be ordered and span at most 365 days, including both endpoints.
 Successful creation opens the new Workspace path. Failed requests preserve
 input for retry; Cancel returns home without submitting.
+
+Workspace loads details and Days from its URL, including on refresh. Trip fields
+are read-only. Missing or inaccessible trips show the same message. Owners can
+confirm deletion; success returns home and reloads the list, while failure keeps
+the confirmation open with an error.
 
 ## Authentication
 
@@ -79,7 +84,8 @@ the shared API client. `App.tsx` manages user state, loading, errors, and naviga
 Frontend tests are grouped by responsibility:
 
 - `src/App.test.tsx`: routing, session restoration, and logout.
-- `src/pages/*.test.tsx`: page tests, including login and registration flows through App.
+- `src/pages/*.test.tsx`: Auth flows through App, Home, trip creation, and Workspace
+  loading, access errors, and deletion interactions.
 - `src/api/auth.test.ts`: Auth API requests and responses.
 - `src/lib/http/api-client.test.ts`: shared HTTP behavior.
 - `src/test-utils/`: shared test setup and route inspection helpers.
@@ -132,6 +138,8 @@ in `en.ts`:
 - `auth.login.*` / `auth.register.*`: page-specific messages.
 - `auth.session.*` / `auth.logout.*`: session and logout messages.
 - `notFound.*`: not-found page messages.
+- `trips.shared.*`: labels and actions shared by Trip pages.
+- `trips.home.*` / `trips.create.*` / `trips.workspace.*`: Trip page messages.
 
 Follow the same pattern for new features. Reuse keys when their meaning is the
 same. Backend error messages and the default HTTP error remain in English.
@@ -140,8 +148,10 @@ same. Backend error messages and the default HTTP error remain in English.
 
 Layout components live in `src/components/layout/`:
 
-- `PageContainer`: a centered `<main>` with a 440px maximum width and shared
-  padding, used by the Auth and not-found pages. Use `className` for extra spacing.
+- `PageContainer`: a centered `<main>` with shared padding. Defaults to
+  `size="wide"` (maximum 1152px) for content pages. Use `size="compact"`
+  (maximum 440px) for forms, as in Login, Register, and Create Trip.
+  Use `className` for extra spacing.
 - `AuthHeader`: the product name and tagline shared by login and registration.
 
 Example from a page in `src/pages/`:
@@ -150,7 +160,7 @@ Example from a page in `src/pages/`:
 import { PageContainer } from '../components/layout/PageContainer'
 import { AuthHeader } from '../components/layout/AuthHeader'
 
-;<PageContainer className="space-y-4">
+;<PageContainer size="compact" className="space-y-4">
     <AuthHeader />
     {/* Page content goes here. */}
 </PageContainer>

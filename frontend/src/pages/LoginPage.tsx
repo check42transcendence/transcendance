@@ -55,7 +55,7 @@ export function LoginPage({
     }
 
     return (
-        <PageContainer>
+        <PageContainer size="compact">
             <AuthHeader />
 
             <Card className="space-y-5">
