@@ -16,39 +16,42 @@ describe('assertTestDatabaseUrl', () => {
   it('rejects a missing environment variable', () => {
     delete process.env[ENV_NAME];
 
-    expect(() => assertTestDatabaseUrl(ENV_NAME))
-      .toThrow(`${ENV_NAME} is not defined`);
+    expect(() => assertTestDatabaseUrl(ENV_NAME)).toThrow(
+      `${ENV_NAME} is not defined`,
+    );
   });
 
   it('rejects an invalid URL', () => {
     process.env[ENV_NAME] = 'not-a-url';
 
-    expect(() => assertTestDatabaseUrl(ENV_NAME))
-      .toThrow('is not a valid database URL');
+    expect(() => assertTestDatabaseUrl(ENV_NAME)).toThrow(
+      'is not a valid database URL',
+    );
   });
 
   it('rejects a non-PostgreSQL URL', () => {
-    process.env[ENV_NAME] =
-      'https://localhost/transcendence_test';
+    process.env[ENV_NAME] = 'https://localhost/transcendence_test';
 
-    expect(() => assertTestDatabaseUrl(ENV_NAME))
-      .toThrow('must use the PostgreSQL protocol');
+    expect(() => assertTestDatabaseUrl(ENV_NAME)).toThrow(
+      'must use the PostgreSQL protocol',
+    );
   });
 
   it('rejects a URL without a database name', () => {
-    process.env[ENV_NAME] =
-      'postgresql://test:test@localhost:5432/';
+    process.env[ENV_NAME] = 'postgresql://test:test@localhost:5432/';
 
-    expect(() => assertTestDatabaseUrl(ENV_NAME))
-      .toThrow('does not include a database name');
+    expect(() => assertTestDatabaseUrl(ENV_NAME)).toThrow(
+      'does not include a database name',
+    );
   });
 
   it('rejects the development database', () => {
     process.env[ENV_NAME] =
       'postgresql://test:test@localhost:5432/transcendence';
 
-    expect(() => assertTestDatabaseUrl(ENV_NAME))
-      .toThrow('must point to a dedicated test database');
+    expect(() => assertTestDatabaseUrl(ENV_NAME)).toThrow(
+      'must point to a dedicated test database',
+    );
   });
 
   it('accepts a dedicated test database', () => {

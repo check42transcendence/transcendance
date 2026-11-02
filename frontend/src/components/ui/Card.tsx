@@ -1,4 +1,4 @@
-import type { ComponentProps } from "react";
+import type { ComponentProps } from 'react'
 
 type CardProps = ComponentProps<'div'>
 
@@ -13,16 +13,9 @@ const appearanceStyles = 'text-ink shadow-subtle'
 
 const baseStyles = [spacingStyles, surfaceStyles, appearanceStyles].join(' ')
 
-export function Card({
-    children,
-    className = '',
-    ...props
-}: CardProps) {
+export function Card({ children, className = '', ...props }: CardProps) {
     return (
-        <div
-            {...props}
-            className={`${baseStyles} ${className}`}
-        >
+        <div {...props} className={`${baseStyles} ${className}`}>
             {children}
         </div>
     )

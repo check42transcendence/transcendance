@@ -1,34 +1,34 @@
-@import "tailwindcss";
-@import "./styles/tripcollab.tokens.css";
+@import 'tailwindcss';
+@import './styles/tripcollab.tokens.css';
 
 @layer base {
-  :root {
-    font-family: var(--tc-font-sans);
-    font-size: var(--tc-font-size-body);
-    color: var(--tc-color-ink);
-    background-color: var(--tc-color-canvas);
-    line-height: 1.5;
-  }
+    :root {
+        font-family: var(--tc-font-sans);
+        font-size: var(--tc-font-size-body);
+        color: var(--tc-color-ink);
+        background-color: var(--tc-color-canvas);
+        line-height: 1.5;
+    }
 
-  body {
-    min-width: 320px;
-  }
+    body {
+        min-width: 320px;
+    }
 
-  button,
-  input,
-  textarea,
-  select {
-    font: inherit;
-  }
+    button,
+    input,
+    textarea,
+    select {
+        font: inherit;
+    }
 
-  button {
-    cursor: pointer;
-  }
+    button {
+        cursor: pointer;
+    }
 }
 
 @layer components {
-  .tc-focus:focus-visible {
-    outline: 2px solid var(--tc-color-brand);
-    outline-offset: 2px;
-  }
+    .tc-focus:focus-visible {
+        outline: 2px solid var(--tc-color-brand);
+        outline-offset: 2px;
+    }
 }

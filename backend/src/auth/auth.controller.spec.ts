@@ -15,6 +15,13 @@ import cookieParser from 'cookie-parser';
 
 // Tests auth routes with mock users and passwords, using real JWT sessions.
 describe('AuthController login', () => {
+  beforeEach(() => {
+    vi.stubEnv('JWT_SECRET', 'test-only-secret-for-auth');
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
   // Starts a session after login, but not after registration.
   it('calls the session tool after successful verification', async () => {
     const module = await Test.createTestingModule({

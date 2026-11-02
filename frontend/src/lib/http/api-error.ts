@@ -1,11 +1,5 @@
 // Error information returned by the backend.
-interface ApiErrorResponse {
-    error: {
-        code: string
-        message: string
-        details?: unknown
-    }
-}
+import type { ApiErrorResponse } from '@tripcollab/shared'
 
 // Stores an API error's message, code, status, and optional details.
 export class ApiError extends Error {

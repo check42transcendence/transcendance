@@ -11,6 +11,7 @@ import {
   AuthPasswordService,
   AuthUserRepository,
 } from './auth.dependencies.js';
+import type { UserResponse } from '@tripcollab/shared';
 
 // Coordinates user creation, credential checks, and current-user lookup.
 @Injectable()
@@ -21,7 +22,7 @@ export class AuthService {
 
     @Inject(AuthPasswordService)
     private readonly passwords: AuthPasswordService,
-  ) {}
+  ) { }
 
   // Uses the same error for an unknown email and a wrong password.
   private invalidCredentials(): UnauthorizedException {
@@ -45,7 +46,7 @@ export class AuthService {
   }
 
   // Passes the password hash to storage and returns only public fields.
-  async register(input: RegisterDto) {
+  async register(input: RegisterDto): Promise<UserResponse> {
     const passwordHash = await this.passwords.hash(input.password);
     try {
       const user = await this.users.create({
@@ -90,7 +91,7 @@ export class AuthService {
   }
 
   // Verifies credentials; the controller handles the session step.
-  async login(input: LoginDto) {
+  async login(input: LoginDto): Promise<UserResponse> {
     const user = await this.users.findByEmail(input.email);
 
     if (user === null) {
@@ -116,7 +117,7 @@ export class AuthService {
   }
 
   // Rejects missing identity or a user that no longer exists.
-  async me(userId: string | null) {
+  async me(userId: string | null): Promise<UserResponse> {
     if (userId === null) {
       throw this.authenticationRequired();
     }

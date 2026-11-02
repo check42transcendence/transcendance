@@ -20,7 +20,8 @@ services:
 
   migration:
     build:
-      context: ./backend
+      context: .
+      dockerfile: backend/Dockerfile
       target: migration
     environment:
       TEST_DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
@@ -30,7 +31,8 @@ services:
 
   backend:
     build:
-      context: ./backend
+      context: .
+      dockerfile: backend/Dockerfile
       target: runtime
     init: true
     environment:
@@ -58,7 +60,8 @@ services:
 
   frontend:
     build:
-      context: ./frontend
+      context: .
+      dockerfile: frontend/Dockerfile
     ports:
       - "127.0.0.1:9443:443"
     volumes:

@@ -102,7 +102,9 @@ end_date >= start_date
 
 Trip base fields have no P0 update path.
 
-No arbitrary maximum Trip duration is frozen in P0.
+Trip creation is limited to 365 days, including both start_date and end_date
+(P0 update: 2026-10-29). The backend checks this before generating Days or writing
+data; this is an API creation limit, not an additional SQL constraint.
 
 ## 5. trip_member
 

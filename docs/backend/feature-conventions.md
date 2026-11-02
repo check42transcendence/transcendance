@@ -10,7 +10,7 @@ Provide consistent NestJS backend conventions so that each Vertical Slice Owner 
 
 These conventions use the merged Auth and Prisma implementation as a reference. They **do not** freeze or alter P0 business rules. In case of any disagreement, the [frozen contracts](../contracts/README.md) take precedence, and changes follow the team's Contract Change Rule.
 
-This document describes the target conventions. Shared code changes (including the global validation pipe, global authentication guard, and API exception normalization) are **not yet implemented** merely because they are specified here; implementation and regression tests belong to #41.
+The shared infrastructure (global ValidationPipe, JWT authentication guard, and HTTP exception normalization) has been implemented and merged into `main` through Issue #41 (PR #68). Future feature owners should use these existing components rather than implement them again.
 
 ## 2. Recommended Feature Structure
 
@@ -85,7 +85,7 @@ Use a shared **global `ValidationPipe`** for DTO-based HTTP request validation. 
 
 Feature owners declare runtime validation in DTO classes using `class-validator` and `class-transformer` where appropriate. Route-specific validation, such as explicit UUID parameter parsing and cross-field checks, may still be needed. Extra fields should be rejected, not silently accepted. Do not assume a global pipe automatically checks all business rules or every primitive route parameter.
 
-**Implementation in #41:** register the global pipe and remove redundant Auth endpoint configuration only after equivalent behavior is covered by regression tests. Preserve registration/login normalization and existing API status/error behavior.
+**Implemented in #41:** the global ValidationPipe is registered, redundant Auth validation configuration has been removed, and regression tests preserve existing registration/login behavior and API error responses.
 
 ### 4.2 Frozen HTTP status and error format
 
@@ -118,7 +118,7 @@ Do not substitute `422` for request validation or invent public error codes with
 - **Service:** enforce business invariants and map known domain failures to the correct HTTP status and stable machine code.
 - **Shared HTTP exception handling:** normalize framework errors, malformed JSON, and unexpected failures into the agreed envelope without overwriting valid, intentional domain codes. Do not leak stack traces, tokens, database details, or credentials.
 
-An application-wide exception filter or equivalent handling will be implemented and tested in #41. Preserve the currently correct Auth responses when doing so.
+**Implemented in #41:** the global HttpExceptionFilter and ApiExpressAdapter normalize HTTP errors into the canonical response format. Recognized client errors retain their 4xx status, including `413 PAYLOAD_TOO_LARGE`. Other unclassified 4xx errors use `CLIENT_ERROR`, while unexpected server failures return a safe `500 INTERNAL_ERROR`.
 
 ## 5. Authentication and Authorization
 
@@ -135,7 +135,7 @@ For backwards compatibility, public endpoints include:
 
 `GET /api/auth/me` remains protected. Marking an endpoint public must be an explicit decision; new feature routes should not become public accidentally.
 
-**Implementation in #41:** introduce the global guard / `@Public()` mechanism with NestJS dependency injection and remove redundant route-level authentication wiring only where safe. This is **not currently present in `main`**. Test all listed Auth and health routes for behavior changes.
+**Implemented in #41:** the global JWT guard protects routes by default, while `@Public()` explicitly exempts public Auth and health endpoints. Regression tests verify the existing authentication behavior.
 
 JWT establishes **identity**, not authoritative Trip role. Never trust client-supplied user IDs, role fields, or JWT claims as current Membership proof.
 

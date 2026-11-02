@@ -46,7 +46,7 @@ Socket.IO: /socket.io
 
 ## 3. Compose Services
 
-The application baseline in `compose.yml` has exactly these services:
+The application baseline in `compose.yml` has three long-running services:
 
 ```text
 frontend
@@ -54,7 +54,13 @@ backend
 postgres
 ```
 
-The isolated browser-test stack in `compose.e2e.yml` additionally defines `migration` and `e2e` test services. This separate Compose file does not change the three-service application baseline.
+Normal Compose also defines a one-shot `migration` service. It runs
+`prisma:migrate:deploy` against `DATABASE_URL` after PostgreSQL is healthy;
+the backend starts only after migration succeeds.
+
+The isolated browser-test stack in `compose.e2e.yml` defines its own `migration`
+service using `test:db:prepare`, plus the `e2e` runner. Test database preparation
+remains separate from normal application migrations.
 
 Cross-container communication uses service DNS names, not `localhost`.
 

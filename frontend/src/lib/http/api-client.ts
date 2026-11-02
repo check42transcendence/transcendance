@@ -1,4 +1,4 @@
-import { readApiError } from "./api-error"
+import { readApiError } from './api-error'
 
 // Sends API requests and throws an ApiError for HTTP failures.
 export async function apiClient(
@@ -29,10 +29,7 @@ export async function apiJson<T>(
 }
 
 // Sends JSON data with POST and reads a JSON response.
-export function apiPostJson<T>(
-    path: string,
-    data: unknown,
-): Promise<T> {
+export function apiPostJson<T>(path: string, data: unknown): Promise<T> {
     return apiJson<T>(path, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

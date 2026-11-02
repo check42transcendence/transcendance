@@ -5,26 +5,28 @@ import {
   Inject,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import type { Request } from 'express';
 import { isUUID } from 'class-validator';
+import { IS_PUBLIC_KEY } from '../../common/decorators/public.decorator.js';
 
-// Describes a request with an optional verified user identity.
 type AuthenticatedRequest = Request & {
   user?: {
     sub: string;
   };
 };
 
-// Checks the JWT cookie before allowing access.
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
   constructor(
     @Inject(JwtService)
-    private jwtService: JwtService,
+    private readonly jwtService: JwtService,
+
+    @Inject(Reflector)
+    private readonly reflector: Reflector,
   ) {}
 
-  // Creates the standard authentication error.
   private authenticationRequired(): UnauthorizedException {
     return new UnauthorizedException({
       error: {
@@ -35,10 +37,23 @@ export class JwtAuthGuard implements CanActivate {
     });
   }
 
-  // Validates the JWT and attaches its user ID to the request.
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
+    // WebSocket authentication is handled separately.
+    if (context.getType() !== 'http') {
+      return true;
+    }
 
+    // Explicitly public HTTP routes skip JWT verification.
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+
+    if (isPublic) {
+      return true;
+    }
+
+    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const token: unknown = request.cookies?.token;
 
     if (typeof token !== 'string' || token.length === 0) {
@@ -55,7 +70,6 @@ export class JwtAuthGuard implements CanActivate {
       }
 
       request.user = { sub: payload.sub };
-
       return true;
     } catch {
       throw this.authenticationRequired();

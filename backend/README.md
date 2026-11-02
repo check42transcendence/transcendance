@@ -9,10 +9,12 @@ For Docker, HTTPS, and environment setup, see the [project README](../README.md)
 - `src/auth/`: registration, login, JWT cookies, and authentication guards.
 - `src/users/`: user persistence and database conflict handling.
 - `src/database/`: shared Prisma connection.
+- `src/trips/`: authenticated Trip creation, reads, and owner-only deletion.
+- `../shared/`: public Auth/Trip API types; DTOs retain runtime validation.
 - `prisma/`: database schema and committed migrations.
 - `test/`: end-to-end and database integration tests.
 
-Request flow: Controller → Service → Repository → PostgreSQL.
+Request flow: Controller → Service → PostgreSQL, using a Repository or PrismaService.
 Modules connect these components through dependency injection.
 
 ## Auth endpoints
@@ -37,19 +39,64 @@ Logout clears the browser cookie; it does not revoke an existing JWT.
 Run these commands from `backend/`, using the Node.js version in `../.nvmrc`.
 Set `DATABASE_URL` to a reachable PostgreSQL database and provide `JWT_SECRET`
 in the backend process environment. Keep the secret private and stable.
-Compose supplies these variables when running the container stack.
+Compose supplies these variables and applies committed migrations before the
+backend starts. The commands below are for running the backend outside Compose.
 
 ```bash
+cd ../shared
+npm ci
+npm run build
+cd ../backend
 npm ci
 npm run prisma:generate
 npm run prisma:migrate:deploy
 npm run start:dev
 ```
 
+After pulling shared-type changes, rebuild `shared`.
 After pulling schema changes, regenerate Prisma Client. Apply any new committed
 migrations before using the updated backend. Generated files in
 `src/generated/` are ignored by Git.
 
+
+## Trips
+
+Trip models: `Trip`, `TripMember`, and `ItineraryDay`, linked to `User`.
+`Proposal` and `ProposalVote` models are also implemented; their APIs are pending.
+See the [P0 database design](../docs/database/p0-database-erd.md) for the full target.
+
+All Trip endpoints require authentication:
+
+| Method | Path | Behavior |
+| --- | --- | --- |
+| POST | `/api/trips` | Creates a Trip, Owner membership, and all Days atomically; returns 201. |
+| GET | `/api/trips` | Lists Trips the caller currently belongs to, with their role. |
+| GET | `/api/trips/:tripId` | Returns details to current members. |
+| GET | `/api/trips/:tripId/days` | Returns Days to current members, ordered by day number. |
+| DELETE | `/api/trips/:tripId` | Deletes the Trip for its current Owner; returns 204 with no body. |
+
+Dates use `YYYY-MM-DD`. Creation includes both start and end dates; a same-day
+Trip has one Day. Creation is limited to 365 days; longer ranges return
+`400 VALIDATION_ERROR` before Days are generated. Lists use `createdAt` descending,
+then `id` descending for equal timestamps.
+Detail/Days reads return `404 TRIP_NOT_FOUND` for missing or
+inaccessible Trips. Deletion checks current membership: ordinary Members receive
+`403 TRIP_OWNER_REQUIRED`; non-members or missing Trips receive `404 TRIP_NOT_FOUND`.
+P0 does not allow base-field editing.
+
+Migrations enforce valid Trip dates, positive Day numbers, unique memberships
+and Day numbers/dates, and at most one Owner per Trip. Deleting a Trip cascades
+to its memberships and Days while preserving users. The CHECK constraints and
+Owner partial unique index are defined in migration SQL; preserve them in future migrations.
+Proposal/Vote cascade cleanup is covered by `test/database/proposal.db-spec.ts`.
+Invitation and Activity cleanup must be integrated as those models become available.
+
+Trip tests use the commands below:
+
+- `test/database/trip.db-spec.ts`: database constraints (`npm run test:db`).
+- `test/database/trips.service.db-spec.ts`: creation, rollback, member access, and deletion cleanup (`npm run test:db`).
+- `test/trips.integration.spec.ts`: unauthenticated route protection (`npm test`).
+- `test/trips.e2e-spec.ts`: HTTP creation, validation, access errors, and deletion (`npm run test:e2e`).
 
 ## Testing strategy
 
@@ -109,6 +156,6 @@ Database integration tests may clear test data. See the
 [project README](../README.md#validation) for environment and validation details.
 
 Browser E2E tests use a separate Docker stack and test database. Its migration
-service runs `test:db:prepare` before the backend starts; development Compose
-still requires migrations to be applied manually. See the
+service runs `test:db:prepare`; normal Compose runs `prisma:migrate:deploy`.
+Both wait for migration success before starting the backend. See the
 [E2E guide](../e2e/README.md) for commands and cleanup.

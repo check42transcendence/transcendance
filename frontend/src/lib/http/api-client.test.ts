@@ -33,7 +33,7 @@ it('preserves request options', async () => {
     await apiClient('/example', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: '{"name":"example"}'
+        body: '{"name":"example"}',
     })
 
     expect(fakeFetch).toHaveBeenCalledWith('/api/example', {
@@ -52,7 +52,7 @@ it('throws an ApiError for a backend error response', async () => {
                 error: {
                     code: 'EXAMPLE_CONFLICT',
                     message: 'Example conflict',
-                    details: { field: 'name' }
+                    details: { field: 'name' },
                 },
             }),
             {

@@ -84,6 +84,16 @@ P0 uses `400`, not a custom `422`, for request validation.
 
 ## 3. Authentication
 
+### Input validation
+
+- Email: trim surrounding whitespace, require a valid email format, maximum 254 characters.
+- Registration username: trim surrounding whitespace, require a non-empty value, maximum 50 characters.
+- Registration and login passwords: minimum 8 Unicode code points, maximum 72 UTF-8 bytes.
+- Passwords may contain Unicode and whitespace; do not trim or truncate them.
+- Invalid input returns `400 VALIDATION_ERROR`. Valid input with incorrect login credentials returns `401 INVALID_CREDENTIALS`.
+
+Development accounts with passwords outside these limits must be recreated.
+
 ### POST /api/auth/register
 
 Request:
@@ -163,6 +173,8 @@ Returns only Trips where current User has current Membership.
 
 Each item includes `currentUserRole`.
 
+Order by `createdAt` descending, then `id` descending for equal timestamps.
+
 ### POST /api/trips
 
 Request:
@@ -176,6 +188,9 @@ Request:
   "description": null
 }
 ```
+
+Trips may span at most 365 days, including both endpoints. Reject larger ranges
+with `400 VALIDATION_ERROR` before generating Days or writing data.
 
 Backend atomically creates Trip, OWNER Membership, and all Days.
 
@@ -521,7 +536,142 @@ PROPOSAL_ALREADY_ACCEPTED
 VALIDATION_ERROR
 MALFORMED_REQUEST
 INTERNAL_ERROR
+
+ACCESS_DENIED
+NOT_FOUND
+STATE_CONFLICT
+PAYLOAD_TOO_LARGE
+CLIENT_ERROR
 ```
+
+### 15.1 Generic HTTP fallback codes
+
+The following three generic fallback codes standardize HTTP error responses without changing existing P0 business rules, permissions, or resource visibility.
+
+| HTTP | Code | Default message | Use only when |
+| --- | --- | --- | --- |
+| `403 Forbidden` | `ACCESS_DENIED` | `Access denied` | The request has an authenticated identity but lacks permission, and no more specific contract-defined code applies. |
+| `404 Not Found` | `NOT_FOUND` | `Not found` | The requested HTTP route or resource is not found and no more specific contract-defined code applies. This also covers an unregistered method/path combination if the framework reports it as 404. |
+| `409 Conflict` | `STATE_CONFLICT` | `State conflict` | The request conflicts with the current state and no specific domain code applies. |
+
+Responses use the standard envelope. Unless a particular domain contract
+explicitly defines safe `details`, the default is `{}`.
+
+Generic 403 example:
+
+```json
+{
+  "error": {
+    "code": "ACCESS_DENIED",
+    "message": "Access denied",
+    "details": {}
+  }
+}
+```
+
+Generic 404 example:
+
+```json
+{
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Not found",
+    "details": {}
+  }
+}
+```
+
+### 15.2 Specific codes always take precedence
+
+An already correctly formatted, intentional domain/auth error keeps its
+**original HTTP status, `error.code`, message, and safe details**. The shared
+HTTP exception filter must not replace it with a generic fallback.
+
+| Situation | Status / code | Why not the generic fallback? |
+| --- | --- | --- |
+| Missing, expired, or invalid JWT for a protected endpoint | `401 AUTHENTICATION_REQUIRED` | The caller has not established valid identity; this is not 403. |
+| Wrong email or password at login | `401 INVALID_CREDENTIALS` | Do not disclose whether the email exists. |
+| Authenticated non-OWNER attempts an OWNER-only action | `403 TRIP_OWNER_REQUIRED` | The feature has an explicit permission error. |
+| Authenticated caller lacks required current TripMembership | `403 MEMBERSHIP_REQUIRED` where a 403 is appropriate under the existing visibility rules | Do not confuse absence of Membership with an invalid JWT. |
+| Trip absent or concealed by the existing access/isolation rules | `404 TRIP_NOT_FOUND` | Preserve domain-level non-disclosure. |
+| Invitation absent (or inaccessible when the feature intentionally conceals it) | `404 INVITATION_NOT_FOUND` | Preserve domain-level handling. |
+| Registered invitee cannot be found | `404 INVITEE_NOT_FOUND` | Preserve the explicit invitation error. |
+| Activity absent or belongs to another Trip | `404 ACTIVITY_NOT_FOUND` | Preserve the URL parent/child relationship rule. |
+| Proposal absent or belongs to another Trip | `404 PROPOSAL_NOT_FOUND` | Preserve the URL parent/child relationship rule. |
+| Route not registered and no domain handler selected | `404 NOT_FOUND` | This is a framework-level fallback. |
+| Authenticated access denial with no specific P0 code | `403 ACCESS_DENIED` | This is a framework/feature fallback, not a replacement for known codes. |
+
+For an Activity, Proposal, or other nested resource, a valid identifier from
+**another Trip** must still be treated as not found in the URL Trip context
+(see Section 14). Do not leak whether the other Trip or its resource exists.
+A pending Invitation still grants no Workspace access. Authentication and
+current Membership/role authorization remain separate checks.
+
+### 15.3 Other existing codes and status handling
+
+This amendment does not redefine any existing code or status. In particular:
+
+| Existing code(s) | Existing HTTP semantics |
+| --- | --- |
+| `VALIDATION_ERROR` | `400` for DTO validation failures, including forbidden extra fields. |
+| `MALFORMED_REQUEST` | `400` for malformed request syntax, including invalid JSON. |
+| `EMAIL_ALREADY_EXISTS`, `USERNAME_ALREADY_EXISTS` | `409` for registration uniqueness conflicts. |
+| `MEMBERSHIP_ALREADY_EXISTS`, `OWNER_CANNOT_LEAVE` | `409` for their already-defined membership/leave conflicts. |
+| `INVITATION_ALREADY_PENDING`, `INVITATION_NOT_PENDING` | `409` when the existing invitation state conflicts with the requested operation. |
+| `ACTIVITY_VERSION_CONFLICT` | `409` for stale optimistic-concurrency updates. |
+| `PROPOSAL_VOTING_CLOSED`, `PROPOSAL_MAJORITY_LOST`, `PROPOSAL_ALREADY_ACCEPTED` | `409` for the existing vote/adoption state conflicts. |
+| `ACTIVITY_DAY_INVALID` | Keep the existing Activity input/Day relationship semantics. Do not use this addition to change Section 14's cross-Trip 404 non-disclosure rule. |
+| `INTERNAL_ERROR` | `500` for unexpected server failures. Never return internal exception/DB details to clients. |
+| `STATE_CONFLICT` | `409` fallback for an otherwise unclassified state conflict. Existing domain-specific 409 codes take precedence. |
+
+`400` must not be silently changed to `422`; an Owner attempting to Leave
+still receives `409 OWNER_CANNOT_LEAVE`, not `403 ACCESS_DENIED`. No 405
+status, new route, new permission, or new business transition is introduced
+by this clarification.
+
+### 15.4 Shared exception-handler requirements
+
+1. Preserve correctly shaped, intentional Auth and feature exceptions,
+   including their existing HTTP status, stable code, message, and safe
+   `details` object.
+2. Convert invalid JSON/parser failures to `400 MALFORMED_REQUEST`, while
+   keeping DTO validation errors as `400 VALIDATION_ERROR`.
+3. Use `401 AUTHENTICATION_REQUIRED` for generic missing/invalid authentication;
+   never substitute `ACCESS_DENIED` for a 401. Preserve `INVALID_CREDENTIALS`
+   for login failures.
+4. Normalize otherwise unclassified `403` errors to `ACCESS_DENIED` and
+   otherwise unclassified `404` errors to `NOT_FOUND`. Do not overwrite
+   feature-specific 403/404 codes.
+5. Return `500 INTERNAL_ERROR` for unexpected failures without exposing
+   stack traces, tokens, password hashes, SQL, connection strings, or other
+   private diagnostic information. Server-side logging may retain the needed
+   diagnostic information under appropriate controls.
+6. Use stable `error.code` values for frontend decisions. Human-readable
+   `message` is for display and must not be treated as the machine identifier.
+7. Keep HTTP response formatting separate from business authorization:
+   Services decide current Membership, role, cross-Trip relationships and
+   transaction state; the exception handler only formats the result.
+8. Normalize otherwise unclassified `409` errors to
+   `STATE_CONFLICT`. Preserve all existing domain-specific
+   conflict codes.
+9. Unexpected HTTP statuses without a contract-defined code
+   must not expose raw framework responses or internal details.
+
+Regression tests must cover the three new fallbacks as well as preservation of
+existing `401`, domain `403/404`, `409`, validation/malformed input and safe
+`500` responses. This contract clarification and its regression tests are included in Issue #41.
+
+### Recognized client errors
+
+Known client-side HTTP errors must preserve their original status codes.
+
+- `413 PAYLOAD_TOO_LARGE`: an oversized request body rejected by the Express parser.
+- Other recognized but unclassified `4xx` errors use `CLIENT_ERROR` with the original HTTP status.
+
+All responses use the canonical error envelope with safe messages and `details: {}`.
+
+These fallback rules do not replace domain-specific error codes.
+Unknown internal failures and server-side exceptions use `500 INTERNAL_ERROR`.
 
 ## 16. Realtime Relationship
 

@@ -12,6 +12,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 import { hash, verify } from './utils/password.util.js';
 import { AuthSessionService } from './auth-session.service.js';
+import { APP_GUARD } from '@nestjs/core';
 
 // Connects auth routes, user storage, password tools, and JWT support.
 @Module({
@@ -40,6 +41,10 @@ import { AuthSessionService } from './auth-session.service.js';
     AuthService,
     AuthSessionService,
     JwtAuthGuard,
+    {
+      provide: APP_GUARD,
+      useExisting: JwtAuthGuard,
+    },
     // Uses the existing PostgreSQL user repository.
     {
       provide: AuthUserRepository,
