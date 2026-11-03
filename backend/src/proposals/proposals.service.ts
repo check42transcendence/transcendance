@@ -66,6 +66,22 @@ export class ProposalsService {
     }
   }
 
+// Protect the Trip from deletion while creating a Proposal.
+private async lockTrip(
+  tx: Prisma.TransactionClient,
+  tripId: string,
+): Promise<void> {
+  const rows = await tx.$queryRaw<{ id: string }[]>`
+    SELECT id
+    FROM "trip"
+    WHERE id = ${tripId}::uuid
+    FOR KEY SHARE
+  `;
+
+  if (rows.length === 0) {
+    this.tripNotFound();
+  }
+}
   // Lock membership against concurrent deletion during creation.
   private async lockTripMember(
     tx: Prisma.TransactionClient,
@@ -136,7 +152,9 @@ export class ProposalsService {
     input: CreateProposalDto,
   ) {
     return this.prisma.$transaction(async (tx) => {
-      await this.lockTripMember(tx, userId, tripId);
+ 	 // Always lock the parent Trip before its Membership.
+  	await this.lockTrip(tx, tripId);
+ 	await this.lockTripMember(tx, userId, tripId);
 
       const proposal = await tx.proposal.create({
         data: {

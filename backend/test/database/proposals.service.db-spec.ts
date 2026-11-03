@@ -16,6 +16,7 @@ import {
   closeTestDatabase,
   getTestDatabaseUrl,
   resetTestDatabase,
+  testDatabase,
 } from './test-database.js';
 
 describe('ProposalsService database integration', () => {
@@ -170,6 +171,88 @@ describe('ProposalsService database integration', () => {
 
     expect(await prisma.proposal.count()).toBe(0);
   });
+
+it('avoids deadlock when Trip deletion races with Proposal creation', async () => {
+  const client = await testDatabase.connect();
+  let transactionOpen = false;
+  let pendingCreate: Promise<unknown> | undefined;
+
+  try {
+    await client.query('BEGIN');
+    transactionOpen = true;
+
+    // Simulate deletion acquiring the parent Trip lock first.
+    await client.query(
+      'SELECT id FROM "trip" WHERE id = $1::uuid FOR UPDATE',
+      [tripId],
+    );
+
+    // Start Proposal creation on another database connection.
+    const creation = service.create(memberId, tripId, input);
+    pendingCreate = creation;
+
+    // Attach a rejection handler while the other transaction is held.
+    void creation.catch(() => undefined);
+
+    // Wait until creation is blocked trying to lock the Trip.
+    let waitingForTrip = false;
+    const deadline = Date.now() + 3000;
+
+    while (Date.now() < deadline) {
+      const result = await testDatabase.query(
+        `SELECT pid
+         FROM pg_stat_activity
+         WHERE datname = current_database()
+           AND pid <> pg_backend_pid()
+           AND wait_event_type = 'Lock'
+           AND query LIKE '%FOR KEY SHARE%'`,
+      );
+
+      if (result.rows.length > 0) {
+        waitingForTrip = true;
+        break;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+
+    expect(waitingForTrip).toBe(true);
+
+    // Deletion should proceed without waiting on a Membership lock
+    // held by the Proposal creation request.
+    await client.query(
+      'DELETE FROM "trip" WHERE id = $1::uuid',
+      [tripId],
+    );
+
+    await client.query('COMMIT');
+    transactionOpen = false;
+
+    // After deletion, creation must fail without writing a Proposal.
+    await expect(creation).rejects.toMatchObject({
+      status: 404,
+      response: {
+        error: { code: 'TRIP_NOT_FOUND' },
+      },
+    });
+
+    expect(
+      await prisma.proposal.count({
+        where: { tripId },
+      }),
+    ).toBe(0);
+  } finally {
+    if (transactionOpen) {
+      await client.query('ROLLBACK');
+    }
+
+    client.release();
+
+    if (pendingCreate) {
+      await pendingCreate.catch(() => undefined);
+    }
+  }
+});
 
   it('rejects creation after membership has been removed', async () => {
     await prisma.tripMember.delete({
