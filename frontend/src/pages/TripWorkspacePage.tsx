@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react'
 import { Link, useParams, useNavigate } from 'react-router'
 import { ApiError } from '../lib/http/api-error'
 import { getTrip, getTripDays, deleteTrip } from '../api/trips'
+import type { TripDetail, ItineraryDay } from '@tripcollab/shared'
 import { PageContainer } from '../components/layout/PageContainer'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
+import { TripMembersSection } from '../components/trips/TripMembersSection'
 import { t } from '../shared/i18n/translation'
-import type { TripDetail, ItineraryDay } from '@tripcollab/shared'
 
 // Load and display the current trip workspace.
 export function TripWorkspacePage() {
@@ -221,6 +222,11 @@ export function TripWorkspacePage() {
                         ))}
                     </ol>
                 </section>
+            )}
+
+            {/* Show the members area only after the trip loads successfully. */}
+            {!tripLoading && !tripError && trip && (
+                <TripMembersSection tripId={trip.id} currentUserRole={trip.currentUserRole} />
             )}
         </PageContainer>
     )

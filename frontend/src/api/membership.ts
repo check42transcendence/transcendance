@@ -1,0 +1,35 @@
+import type {
+    TripMembersResponse,
+    CreateInvitationRequest,
+} from '@tripcollab/shared'
+import { apiClient, apiJson } from '../lib/http/api-client'
+
+// Load the current members of a trip.
+export function getTripMembers(
+    tripId: string
+): Promise<TripMembersResponse> {
+    return apiJson<TripMembersResponse>(`/trips/${tripId}/members`)
+}
+
+// Leave the trip as a current member.
+export async function leaveTrip(
+    tripId: string
+): Promise<void> {
+    await apiClient(`/trips/${tripId}/leave`, {
+        method: 'POST',
+    })
+}
+
+// Invite a registered user by username or email.
+export async function createTripInvitation(
+    tripId: string,
+    input: CreateInvitationRequest
+): Promise<void> {
+    await apiClient(`/trips/${tripId}/invitations`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(input),
+    })
+}

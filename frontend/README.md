@@ -67,6 +67,21 @@ are read-only. Missing or inaccessible trips show the same message. Owners can
 confirm deletion; success returns home and reloads the list, while failure keeps
 the confirmation open with an error.
 
+## Membership
+
+`src/components/trips/TripMembersSection.tsx` provides the Workspace members area:
+member usernames and roles, Owner invitations by username or email, and Member
+leave confirmation. Failed requests preserve the page; successful leave returns
+Home and reloads the Trip list. Sending an invitation does not add a member.
+
+`src/api/membership.ts` uses the shared HTTP client and types from
+`shared/src/api/membership.types.ts`. Member lists expect `{ members: [...] }`;
+invitation success bodies are not read, and leave expects `204`.
+
+These flows currently have mocked-request tests; real backend integration and
+confirmation of response shapes remain pending. Pending invitations and
+Accept/Reject UI belong to #91, outside this change.
+
 ## Authentication
 
 `src/api/auth.ts` provides `register`, `login`, `getMe`, and `logout` using
@@ -86,6 +101,8 @@ Frontend tests are grouped by responsibility:
 - `src/App.test.tsx`: routing, session restoration, and logout.
 - `src/pages/*.test.tsx`: Auth flows through App, Home, trip creation, and Workspace
   loading, access errors, and deletion interactions.
+- `src/components/trips/TripMembersSection.test.tsx`: member loading, role-based
+  actions, invitation feedback, and leave behavior.
 - `src/api/auth.test.ts`: Auth API requests and responses.
 - `src/lib/http/api-client.test.ts`: shared HTTP behavior.
 - `src/test-utils/`: shared test setup and route inspection helpers.
@@ -140,6 +157,7 @@ in `en.ts`:
 - `notFound.*`: not-found page messages.
 - `trips.shared.*`: labels and actions shared by Trip pages.
 - `trips.home.*` / `trips.create.*` / `trips.workspace.*`: Trip page messages.
+- `membership.*`: member lists, invitations, and leave messages.
 
 Follow the same pattern for new features. Reuse keys when their meaning is the
 same. Backend error messages and the default HTTP error remain in English.

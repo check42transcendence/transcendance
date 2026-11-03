@@ -133,6 +133,10 @@ function mockWorkspaceRequests(
             return jsonResponse({ days })
         }
 
+        if (url === `${tripPath}/members` && !options?.method) {
+            return jsonResponse({ members: [] })
+        }
+
         if (url === '/api/trips' && !options?.method) {
             return jsonResponse({ trips: [] })
         }
