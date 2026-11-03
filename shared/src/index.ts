@@ -23,3 +23,9 @@ export type {
 	MembershipRole,
 	UserSummary
 } from './api/common.types.js'
+
+export type {
+	TripMember,
+	TripMembersResponse,
+	CreateInvitationRequest,
+} from './api/membership.types.js'

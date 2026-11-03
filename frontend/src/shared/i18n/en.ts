@@ -109,4 +109,32 @@ export const en = {
     'trips.workspace.delete.pending': 'Deleting...',
     'trips.workspace.delete.error':
         'Unable to delete the trip. Please try again.',
+
+    // Trip members, invitations, and leave actions.
+    'membership.title': 'Members',
+    'membership.loading': 'Loading members...',
+    'membership.error': 'Unable to load members. Please try again.',
+    'membership.empty': 'No members to display.',
+    'membership.leave.action': 'Leave trip',
+    'membership.leave.title': 'Leave this trip?',
+    'membership.leave.description':
+        'You will lose access to this trip. An owner must invite you again to rejoin.',
+    'membership.leave.error': 'Unable to leave the trip. Please try again.',
+    'membership.invite.action': 'Invite member',
+    'membership.invite.title': 'Invite a member',
+    'membership.invite.description':
+        'Invite a registered user by username or email.',
+    'membership.invite.method': 'Find user by',
+    'membership.invite.byUsername': 'Username',
+    'membership.invite.byEmail': 'Email',
+    'membership.invite.required': 'Please enter a username or email.',
+    'membership.invite.success': 'Invitation sent.',
+    'membership.invite.error':
+        'Unable to send the invitation. Please try again.',
+    'membership.invite.userNotFound':
+        'No user found with that username or email.',
+    'membership.invite.alreadyPending':
+        'This user already has a pending invitation.',
+    'membership.invite.alreadyMember':
+        'This user is already a trip member.',
 }
