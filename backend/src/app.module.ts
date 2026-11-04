@@ -7,6 +7,7 @@ import { PrismaModule } from './database/prisma.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
 import { TripsModule } from './trips/trips.module.js';
+import { ProposalsModule } from './proposals/proposals.module.js';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { TripsModule } from './trips/trips.module.js';
     PrismaModule,
     AuthModule,
     TripsModule,
+    ProposalsModule,
   ],
   controllers: [AppController],
   providers: [
