@@ -6,6 +6,7 @@ import { PageContainer } from '../components/layout/PageContainer'
 import { Button } from '../components/ui/Button'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Card } from '../components/ui/Card'
+import { PendingInvitationsSection } from '../components/trips/PendingInvitationsSection'
 import { t } from '../shared/i18n/translation'
 
 // Session information and logout controls provided by App.
@@ -27,11 +28,17 @@ export function HomePage({
     const [tripsLoading, setTripsLoading] = useState(true)
     const [tripsError, setTripsError] = useState('')
 
-    // Load trips when Home mounts and ignore results after leaving the page.
+    // Trigger a fresh trip list after accepting an invitation.
+    const [tripsRefreshVersion, setTripsRefreshVersion] = useState(0)
+
+    // Reload trips on mount or after acceptance; ignore outdated results.
     useEffect(() => {
         let active = true
 
         async function loadTrips(): Promise<void> {
+            setTripsLoading(true)
+            setTripsError('')
+
             try {
                 const listResult = await getTrips()
 
@@ -54,7 +61,7 @@ export function HomePage({
         return () => {
             active = false
         }
-    }, [])
+    }, [tripsRefreshVersion])
 
     return (
         <PageContainer>
@@ -68,6 +75,12 @@ export function HomePage({
                     ? t('auth.logout.pending')
                     : t('auth.logout.action')}
             </Button>
+
+            <PendingInvitationsSection
+                onAccepted={() =>
+                    setTripsRefreshVersion((previous) => previous + 1)
+                }
+            />
 
             {/* Show the trip list's loading, error, and empty states. */}
             <section className="mt-8">

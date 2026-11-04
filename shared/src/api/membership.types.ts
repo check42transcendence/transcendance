@@ -16,3 +16,23 @@ export interface TripMembersResponse {
 export type CreateInvitationRequest =
     | { username: string; email?: never }
     | { email: string; username?: never }
+
+// A pending invitation shown to its recipient.
+export interface PendingInvitation {
+    id: string
+    status: 'PENDING'
+    trip: {
+        id: string,
+        title: string,
+        destination: string
+        startDate: string
+        endDate: string
+    }
+    invitedBy: UserSummary
+    createdAt: string
+}
+
+// Response containing the current user's pending invitations.
+export interface PendingInvitationsResponse {
+    invitations: PendingInvitation[]
+}

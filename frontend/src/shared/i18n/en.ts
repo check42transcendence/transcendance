@@ -115,11 +115,13 @@ export const en = {
     'membership.loading': 'Loading members...',
     'membership.error': 'Unable to load members. Please try again.',
     'membership.empty': 'No members to display.',
+
     'membership.leave.action': 'Leave trip',
     'membership.leave.title': 'Leave this trip?',
     'membership.leave.description':
         'You will lose access to this trip. An owner must invite you again to rejoin.',
     'membership.leave.error': 'Unable to leave the trip. Please try again.',
+
     'membership.invite.action': 'Invite member',
     'membership.invite.title': 'Invite a member',
     'membership.invite.description':
@@ -137,4 +139,18 @@ export const en = {
         'This user already has a pending invitation.',
     'membership.invite.alreadyMember':
         'This user is already a trip member.',
+
+    'membership.pending.title': 'Pending invitations',
+    'membership.pending.loading': 'Loading invitations...',
+    'membership.pending.empty': 'No pending invitations.',
+    'membership.pending.error':
+        'Unable to load invitations. Please try again.',
+    'membership.pending.invitedBy': 'Invited by',
+    'membership.pending.accept': 'Accept',
+    'membership.pending.reject': 'Reject',
+    'membership.pending.decisionError':
+        'Unable to process this invitation. Please try again.',
+    'membership.pending.unavailable':
+        'This invitation is no longer available. Refresh the list.',
+    'membership.pending.refresh': 'Refresh invitations',
 }

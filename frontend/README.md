@@ -44,7 +44,7 @@ npm run build
 
 - `/` redirects to `/login`.
 - `/login` and `/register` show the Auth pages.
-- `/home` shows the current user's trips and a sign-out button.
+- `/home` shows the current user's trips, pending invitations, and a sign-out button.
 - `/trips/new` shows the trip creation form.
 - `/trips/:tripId` shows Trip details, membership role, Days, and Owner-only deletion.
 - These three routes require sign-in; unauthenticated users are redirected to `/login`.
@@ -74,13 +74,18 @@ member usernames and roles, Owner invitations by username or email, and Member
 leave confirmation. Failed requests preserve the page; successful leave returns
 Home and reloads the Trip list. Sending an invitation does not add a member.
 
-`src/api/membership.ts` uses the shared HTTP client and types from
-`shared/src/api/membership.types.ts`. Member lists expect `{ members: [...] }`;
-invitation success bodies are not read, and leave expects `204`.
+`PendingInvitationsSection.tsx` adds pending invitations to Home with Trip and
+inviter summaries. Accept refreshes both invitations and My Trips; Reject removes
+only that invitation. Actions have per-card loading and errors. Invalid invitations
+show a refresh option, and pending invitations do not grant Workspace access.
 
-These flows currently have mocked-request tests; real backend integration and
-confirmation of response shapes remain pending. Pending invitations and
-Accept/Reject UI belong to #91, outside this change.
+`src/api/membership.ts` uses the shared HTTP client and types from
+`shared/src/api/membership.types.ts`. Lists expect `{ members: [...] }` or
+`{ invitations: [...] }`. Invitation creation and decision success bodies are not
+read; leave expects `204`.
+
+These flows have mocked-request tests. Real backend integration and confirmation
+of response shapes remain pending for #92.
 
 ## Authentication
 
@@ -103,6 +108,8 @@ Frontend tests are grouped by responsibility:
   loading, access errors, and deletion interactions.
 - `src/components/trips/TripMembersSection.test.tsx`: member loading, role-based
   actions, invitation feedback, and leave behavior.
+- `src/components/trips/PendingInvitationsSection.test.tsx`: invitation loading,
+  acceptance with real Home refresh behavior, rejection, and failure feedback.
 - `src/api/auth.test.ts`: Auth API requests and responses.
 - `src/lib/http/api-client.test.ts`: shared HTTP behavior.
 - `src/test-utils/`: shared test setup and route inspection helpers.

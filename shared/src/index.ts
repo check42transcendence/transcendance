@@ -28,4 +28,6 @@ export type {
 	TripMember,
 	TripMembersResponse,
 	CreateInvitationRequest,
+	PendingInvitation,
+	PendingInvitationsResponse,
 } from './api/membership.types.js'

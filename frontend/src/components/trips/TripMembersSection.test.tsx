@@ -110,6 +110,9 @@ function mockMemberRequests(
         if (url === `${tripPath}/leave` && options?.method === 'POST') {
             return leaveResponse ?? new Response(null, { status: 204 })
         }
+        if (url === '/api/invitations?status=PENDING' && !options?.method) {
+            return jsonResponse({ invitations: [] })
+        }
         if (url === '/api/trips' && !options?.method) {
             return jsonResponse({ trips: [] })
         }
