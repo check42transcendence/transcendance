@@ -25,8 +25,7 @@ export const en = {
     'auth.login.description': 'Sign in to continue to your trips.',
     'auth.login.placeholders.password': 'Enter your password',
     'auth.login.noAccount': "Don't have an account?",
-    'auth.login.validation.required':
-        'Please enter your email and password.',
+    'auth.login.validation.required': 'Please enter your email and password.',
     'auth.login.error': 'Unable to sign in. Please try again.',
 
     // Registration page text, validation, and result messages.
@@ -37,21 +36,17 @@ export const en = {
     'auth.register.fields.confirmPassword': 'Confirm password',
     'auth.register.placeholders.username': 'Choose a username',
     'auth.register.placeholders.password': 'Create a password',
-    'auth.register.placeholders.confirmPassword':
-        'Enter your password again',
+    'auth.register.placeholders.confirmPassword': 'Enter your password again',
     'auth.register.hasAccount': 'Already have an account?',
     'auth.register.validation.required': 'Please complete all fields.',
-    'auth.register.validation.passwordMismatch':
-        'Passwords do not match.',
+    'auth.register.validation.passwordMismatch': 'Passwords do not match.',
     'auth.register.success': 'Account created. Please sign in.',
-    'auth.register.error':
-        'Unable to create an account. Please try again.',
+    'auth.register.error': 'Unable to create an account. Please try again.',
 
     // Session status and logout messages.
     'auth.session.checking': 'Checking session...',
     'auth.session.signedIn': 'Signed in',
-    'auth.session.error':
-        'Unable to check your session. Please try again.',
+    'auth.session.error': 'Unable to check your session. Please try again.',
 
     'auth.logout.action': 'Sign out',
     'auth.logout.pending': 'Signing out...',
@@ -78,26 +73,21 @@ export const en = {
     'trips.home.title': 'My trips',
     'trips.home.loading': 'Loading your trips...',
     'trips.home.empty.title': 'No trips yet',
-    'trips.home.empty.description':
-        'Create a trip to start planning together.',
+    'trips.home.empty.description': 'Create a trip to start planning together.',
 
     // Create Trip page messages.
     'trips.create.title': 'Create trip',
-    'trips.create.validation.required':
-        'Please complete all required fields.',
+    'trips.create.validation.required': 'Please complete all required fields.',
     'trips.create.validation.dateRange':
         'End date must not be earlier than start date.',
-    'trips.create.validation.duration':
-        'A trip must not exceed 365 days.',
+    'trips.create.validation.duration': 'A trip must not exceed 365 days.',
     'trips.create.pending': 'Creating trip...',
-    'trips.create.error':
-        'Unable to create the trip. Please try again.',
+    'trips.create.error': 'Unable to create the trip. Please try again.',
 
     // Trip workspace page messages.
     'trips.workspace.title': 'Trip workspace',
     'trips.workspace.loading': 'Loading trip...',
-    'trips.workspace.error':
-        'Unable to load the trip. Please try again.',
+    'trips.workspace.error': 'Unable to load the trip. Please try again.',
     'trips.workspace.days.title': 'Itinerary days',
     'trips.workspace.days.day': 'Day',
     'trips.workspace.unavailable':
@@ -137,14 +127,12 @@ export const en = {
         'No user found with that username or email.',
     'membership.invite.alreadyPending':
         'This user already has a pending invitation.',
-    'membership.invite.alreadyMember':
-        'This user is already a trip member.',
+    'membership.invite.alreadyMember': 'This user is already a trip member.',
 
     'membership.pending.title': 'Pending invitations',
     'membership.pending.loading': 'Loading invitations...',
     'membership.pending.empty': 'No pending invitations.',
-    'membership.pending.error':
-        'Unable to load invitations. Please try again.',
+    'membership.pending.error': 'Unable to load invitations. Please try again.',
     'membership.pending.invitedBy': 'Invited by',
     'membership.pending.accept': 'Accept',
     'membership.pending.reject': 'Reject',
@@ -153,4 +141,52 @@ export const en = {
     'membership.pending.unavailable':
         'This invitation is no longer available. Refresh the list.',
     'membership.pending.refresh': 'Refresh invitations',
+
+    // Proposal decisions, list, creation, and detail.
+    'proposals.decisions.title': 'Decisions',
+    'proposals.decisions.description':
+        'Share ideas and decide together what to add to your trip.',
+
+    'proposals.list.title': 'Proposals',
+    'proposals.list.loading': 'Loading proposals...',
+    'proposals.list.error': 'Unable to load proposals. Please try again.',
+    'proposals.list.empty.title': 'No proposals yet',
+    'proposals.list.empty.description':
+        'Create a proposal to suggest an idea for this trip.',
+
+    'proposals.create.action': 'Create proposal',
+    'proposals.create.title': 'Create a proposal',
+    'proposals.create.validation.required': 'Please enter a proposal title.',
+    'proposals.create.validation.maxLength':
+        'Proposal title must not exceed 160 characters.',
+    'proposals.create.validation.invalid':
+        'Please check the proposal information.',
+    'proposals.create.error':
+        'Unable to create the proposal. Please try again.',
+    'proposals.create.unavailable': 'This trip is no longer available.',
+
+    'proposals.fields.title': 'Proposal title',
+    'proposals.fields.description': 'Description (optional)',
+    'proposals.fields.creator': 'Created by',
+    'proposals.fields.createdAt': 'Created on',
+
+    'proposals.status.pending': 'Pending',
+    'proposals.status.accepted': 'Accepted',
+
+    'proposals.detail.action': 'View details',
+    'proposals.detail.title': 'Proposal details',
+    'proposals.detail.loading': 'Loading proposal details...',
+    'proposals.detail.error':
+        'Unable to load proposal details. Please try again.',
+    'proposals.detail.unavailable': 'This proposal is no longer available.',
+    'proposals.detail.noDescription': 'No description provided.',
+    'proposals.detail.votes': 'Vote summary',
+
+    'proposals.votes.agree': 'Agree',
+    'proposals.votes.reject': 'Reject',
+    'proposals.votes.pending': 'Not voted',
+    'proposals.votes.participants': 'Participants',
+    'proposals.votes.required': 'Required agrees',
+    'proposals.votes.yours': 'Your vote',
+    'proposals.votes.notVoted': 'Not voted yet',
 }

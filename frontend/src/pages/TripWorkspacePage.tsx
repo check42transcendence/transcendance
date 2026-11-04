@@ -9,6 +9,7 @@ import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
 import { TripMembersSection } from '../components/trips/TripMembersSection'
 import { t } from '../shared/i18n/translation'
+import { ProposalSection } from '../components/proposals/ProposalSection'
 
 // Load and display the current trip workspace.
 export function TripWorkspacePage() {
@@ -114,23 +115,19 @@ export function TripWorkspacePage() {
                 {t('trips.shared.actions.backToHome')}
             </Link>
 
-            {tripLoading && (
-                <p role="status">{t('trips.workspace.loading')}</p>
-            )}
+            {tripLoading && <p role="status">{t('trips.workspace.loading')}</p>}
 
-            {!tripLoading && tripError && (
-                <p role="alert">{tripError}</p>
-            )}
-
+            {!tripLoading && tripError && <p role="alert">{tripError}</p>}
 
             {!tripLoading && !tripError && trip && (
-                <Card className='mt-6 space-y-3 wrap-break-word'>
+                <Card className="mt-6 space-y-3 wrap-break-word">
                     <h2 className="text-card-title font-medium">
                         {trip.title}
                     </h2>
 
                     <p>
-                        {t('trips.shared.fields.destination')}: {trip.destination}
+                        {t('trips.shared.fields.destination')}:{' '}
+                        {trip.destination}
                     </p>
 
                     <p>
@@ -148,7 +145,9 @@ export function TripWorkspacePage() {
                     </p>
 
                     {trip.description && (
-                        <p className="whitespace-pre-wrap">{trip.description}</p>
+                        <p className="whitespace-pre-wrap">
+                            {trip.description}
+                        </p>
                     )}
 
                     {trip.currentUserRole === 'OWNER' && (
@@ -183,9 +182,12 @@ export function TripWorkspacePage() {
                                             onClick={handleDeleteTrip}
                                         >
                                             {deleteLoading
-                                                ? t('trips.workspace.delete.pending')
-                                                : t('trips.workspace.delete.action')
-                                            }
+                                                ? t(
+                                                      'trips.workspace.delete.pending',
+                                                  )
+                                                : t(
+                                                      'trips.workspace.delete.action',
+                                                  )}
                                         </Button>
                                     </>
                                 }
@@ -193,7 +195,10 @@ export function TripWorkspacePage() {
                                 <p>{t('trips.workspace.delete.description')}</p>
 
                                 {deleteError && (
-                                    <p role="alert" className="mt-3 text-danger">
+                                    <p
+                                        role="alert"
+                                        className="mt-3 text-danger"
+                                    >
                                         {deleteError}
                                     </p>
                                 )}
@@ -204,17 +209,18 @@ export function TripWorkspacePage() {
             )}
 
             {!tripLoading && !tripError && trip && (
-                <section className='mt-6'>
-                    <h2 className='text-card-title font-medium'>
+                <section className="mt-6">
+                    <h2 className="text-card-title font-medium">
                         {t('trips.workspace.days.title')}
                     </h2>
 
-                    <ol className='mt-3 space-y-3'>
+                    <ol className="mt-3 space-y-3">
                         {days.map((day) => (
                             <li key={day.id}>
                                 <Card>
                                     <p>
-                                        {t('trips.workspace.days.day')} {day.dayNumber}
+                                        {t('trips.workspace.days.day')}{' '}
+                                        {day.dayNumber}
                                     </p>
                                     <p className="text-muted">{day.date}</p>
                                 </Card>
@@ -224,9 +230,17 @@ export function TripWorkspacePage() {
                 </section>
             )}
 
+            {/* Show Proposals only when the current Trip is accessible. */}
+            {!tripLoading && !tripError && trip && (
+                <ProposalSection key={trip.id} tripId={trip.id} />
+            )}
+
             {/* Show the members area only after the trip loads successfully. */}
             {!tripLoading && !tripError && trip && (
-                <TripMembersSection tripId={trip.id} currentUserRole={trip.currentUserRole} />
+                <TripMembersSection
+                    tripId={trip.id}
+                    currentUserRole={trip.currentUserRole}
+                />
             )}
         </PageContainer>
     )

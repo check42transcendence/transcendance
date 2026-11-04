@@ -31,3 +31,14 @@ export type {
 	PendingInvitation,
 	PendingInvitationsResponse,
 } from './api/membership.types.js'
+
+export type {
+    ProposalStatus,
+    VoteDecision,
+    SharedVoteSummary,
+    SharedProposal,
+    Proposal,
+    CreateProposalRequest,
+    ProposalListResponse,
+    ProposalResponse,
+} from './api/proposals.types.js'
