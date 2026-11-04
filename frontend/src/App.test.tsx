@@ -9,6 +9,57 @@ import { CurrentPath } from './test-utils/CurrentPath'
 
 setupAppTests()
 
+// Route signed-in requests by URL so Home can load invitations independently.
+function mockSignedInRequests(logoutFails = false) {
+    return vi.fn(async (url: string, options?: RequestInit) => {
+        if (url === '/api/auth/me') {
+            return new Response(
+                JSON.stringify({
+                    user: {
+                        id: 'test-user-id',
+                        email: 'test-user@example.com',
+                        username: 'test-user',
+                    },
+                }),
+                {
+                    status: 200,
+                    headers: { 'Content-Type': 'application/json' },
+                },
+            )
+        }
+        if (url === '/api/trips') {
+            return new Response(JSON.stringify({ trips: [] }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+            })
+        }
+        if (url === '/api/invitations?status=PENDING') {
+            return new Response(JSON.stringify({ invitations: [] }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+            })
+        }
+        if (url === '/api/auth/logout' && options?.method === 'POST') {
+            return logoutFails
+                ? new Response(
+                      JSON.stringify({
+                          error: {
+                              code: 'INTERNAL_SERVER_ERROR',
+                              message: 'Unable to sign out.',
+                              details: {},
+                          },
+                      }),
+                      {
+                          status: 500,
+                          headers: { 'Content-Type': 'application/json' },
+                      },
+                  )
+                : new Response(null, { status: 204 })
+        }
+        throw new Error(`Unexpected test request: ${url}`)
+    })
+}
+
 // Shows login after checking the session.
 it('renders the login page at /login', async () => {
     render(
@@ -94,30 +145,7 @@ it('navigates to login from the registration page', async () => {
 
 // Restores the current user when opening the home page.
 it('restores an authenticated user at /home', async () => {
-    const fakeFetch = vi
-        .fn()
-        .mockResolvedValueOnce(
-            new Response(
-                JSON.stringify({
-                    user: {
-                        id: 'test-user-id',
-                        email: 'test-user@example.com',
-                        username: 'test-user',
-                    },
-                }),
-                {
-                    status: 200,
-                    headers: { 'Content-Type': 'application/json' },
-                },
-            ),
-        )
-        // Return the trip list after restoring the session.
-        .mockResolvedValueOnce(
-            new Response(JSON.stringify({ trips: [] }), {
-                status: 200,
-                headers: { 'Content-Type': 'application/json' },
-            }),
-        )
+    const fakeFetch = mockSignedInRequests()
 
     vi.stubGlobal('fetch', fakeFetch)
 
@@ -179,34 +207,7 @@ it('shows an error when the session check fails', async () => {
 
 // Returns to login after successful logout.
 it('logs out and redirects to login', async () => {
-    const fakeFetch = vi
-        .fn()
-        .mockResolvedValueOnce(
-            new Response(
-                JSON.stringify({
-                    user: {
-                        id: 'test-user-id',
-                        email: 'test-user@example.com',
-                        username: 'test-user',
-                    },
-                }),
-                {
-                    status: 200,
-                    headers: { 'Content-Type': 'application/json' },
-                },
-            ),
-        )
-        .mockResolvedValueOnce(
-            new Response(JSON.stringify({ trips: [] }), {
-                status: 200,
-                headers: { 'Content-Type': 'application/json' },
-            }),
-        )
-        .mockResolvedValueOnce(
-            new Response(null, {
-                status: 204,
-            }),
-        )
+    const fakeFetch = mockSignedInRequests()
 
     vi.stubGlobal('fetch', fakeFetch)
 
@@ -227,7 +228,7 @@ it('logs out and redirects to login', async () => {
 
     expect(screen.getByLabelText('Current path').textContent).toBe('/login')
 
-    expect(fakeFetch).toHaveBeenNthCalledWith(3, '/api/auth/logout', {
+    expect(fakeFetch).toHaveBeenCalledWith('/api/auth/logout', {
         method: 'POST',
         credentials: 'same-origin',
     })
@@ -235,44 +236,7 @@ it('logs out and redirects to login', async () => {
 
 // Keeps the current user when logout fails.
 it('shows an error and stays signed in when logout fails', async () => {
-    const fakeFetch = vi
-        .fn()
-        .mockResolvedValueOnce(
-            new Response(
-                JSON.stringify({
-                    user: {
-                        id: 'test-user-id',
-                        email: 'test-user@example.com',
-                        username: 'test-user',
-                    },
-                }),
-                {
-                    status: 200,
-                    headers: { 'Content-Type': 'application/json' },
-                },
-            ),
-        )
-        .mockResolvedValueOnce(
-            new Response(JSON.stringify({ trips: [] }), {
-                status: 200,
-                headers: { 'Content-Type': 'application/json' },
-            }),
-        )
-        .mockResolvedValueOnce(
-            new Response(
-                JSON.stringify({
-                    error: {
-                        code: 'INTERNAL_SERVER_ERROR',
-                        message: 'Unable to sign out.',
-                        details: {},
-                    },
-                }),
-                {
-                    status: 500,
-                    headers: { 'Content-Type': 'application/json' },
-                },
-            ),
-        )
+    const fakeFetch = mockSignedInRequests(true)
 
     vi.stubGlobal('fetch', fakeFetch)
 

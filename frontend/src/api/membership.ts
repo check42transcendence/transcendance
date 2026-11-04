@@ -1,6 +1,7 @@
 import type {
     TripMembersResponse,
     CreateInvitationRequest,
+    PendingInvitationsResponse,
 } from '@tripcollab/shared'
 import { apiClient, apiJson } from '../lib/http/api-client'
 
@@ -31,5 +32,30 @@ export async function createTripInvitation(
             'Content-Type': 'application/json',
         },
         body: JSON.stringify(input),
+    })
+}
+
+// Load pending invitations addressed to the current user.
+export async function getPendingInvitations(): Promise<PendingInvitationsResponse> {
+    return apiJson<PendingInvitationsResponse>(
+        '/invitations?status=PENDING',
+    )
+}
+
+// Accept an invitation addressed to the current user.
+export async function acceptInvitation(
+    invitationId: string,
+): Promise<void> {
+    await apiClient(`/invitations/${invitationId}/accept`, {
+        method: 'POST',
+    })
+}
+
+// Reject an invitation addressed to the current user.
+export async function rejectInvitation(
+    invitationId: string,
+): Promise<void> {
+    await apiClient(`/invitations/${invitationId}/reject`, {
+        method: 'POST',
     })
 }

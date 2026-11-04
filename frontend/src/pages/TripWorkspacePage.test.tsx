@@ -137,6 +137,9 @@ function mockWorkspaceRequests(
             return jsonResponse({ members: [] })
         }
 
+        if (url === '/api/invitations?status=PENDING' && !options?.method) {
+            return jsonResponse({ invitations: [] })
+        }
         if (url === '/api/trips' && !options?.method) {
             return jsonResponse({ trips: [] })
         }

@@ -24,10 +24,9 @@ it('logs in and navigates to home', async () => {
         name: 'Welcome back',
     })
 
-    const fakeFetch = vi
-        .fn()
-        .mockResolvedValueOnce(
-            new Response(
+    const fakeFetch = vi.fn(async (url: string) => {
+        if (url === '/api/auth/login') {
+            return new Response(
                 JSON.stringify({
                     user: {
                         id: 'test-user-id',
@@ -39,14 +38,22 @@ it('logs in and navigates to home', async () => {
                     status: 200,
                     headers: { 'Content-Type': 'application/json' },
                 },
-            ),
-        )
-        .mockResolvedValueOnce(
-            new Response(JSON.stringify({ trips: [] }), {
+            )
+        }
+        if (url === '/api/trips') {
+            return new Response(JSON.stringify({ trips: [] }), {
                 status: 200,
                 headers: { 'Content-Type': 'application/json' },
-            }),
-        )
+            })
+        }
+        if (url === '/api/invitations?status=PENDING') {
+            return new Response(JSON.stringify({ invitations: [] }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+            })
+        }
+        throw new Error(`Unexpected test request: ${url}`)
+    })
 
     vi.stubGlobal('fetch', fakeFetch)
 
@@ -67,7 +74,7 @@ it('logs in and navigates to home', async () => {
     expect(screen.getByLabelText('Current path').textContent).toBe('/home')
 
     await screen.findByRole('heading', { name: 'No trips yet' })
-    expect(fakeFetch).toHaveBeenCalledTimes(2)
+    expect(fakeFetch).toHaveBeenCalledTimes(3)
 
     expect(fakeFetch).toHaveBeenCalledWith('/api/auth/login', {
         method: 'POST',

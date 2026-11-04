@@ -19,6 +19,8 @@ Currently implemented:
   validation, and request-error feedback.
 - Trip Workspace with read-only details, membership role, generated Days, and
   Owner-only deletion with confirmation and error feedback.
+- Membership UI for member lists, invitations, acceptance/rejection, and leaving,
+  verified with mocked requests; real backend integration is pending in #92.
 - Shared UI tokens and reusable form controls, cards, modals, tabs, and notifications using
   Tailwind CSS v4, Inter, and Lucide. See the [frontend guide](frontend/README.md)
   for component usage and styling conventions.
@@ -43,8 +45,7 @@ log the user in; login sets a Secure, HttpOnly cookie. Logout clears the
 cookie without revoking issued JWTs.
 `/home` lists the current user's trips; `/trips/new` creates a Trip.
 `/trips/:tripId` loads Workspace details and Days directly from the backend.
-Activity, Proposal, and member-management UI, plus real-time collaboration,
-are not implemented yet.
+Activity and Proposal UI, plus real-time collaboration, are not implemented yet.
 See the [P0 database design](docs/database/p0-database-erd.md) for the target
 structure and current implementation status.
 

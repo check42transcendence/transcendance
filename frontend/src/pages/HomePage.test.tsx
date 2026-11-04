@@ -3,6 +3,7 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
+import type { TripSummary } from '@tripcollab/shared'
 import { HomePage } from './HomePage'
 import { CurrentPath } from '../test-utils/CurrentPath'
 
@@ -11,6 +12,27 @@ afterEach(() => {
     cleanup()
     vi.unstubAllGlobals()
 })
+
+// Keep invitation responses separate from the Trip scenario under test.
+function mockHomeRequests(trips: TripSummary[] = [], tripsStatus = 200) {
+    return vi.fn(async (url: string) => {
+        if (url === '/api/invitations?status=PENDING') {
+            return new Response(JSON.stringify({ invitations: [] }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+            })
+        }
+        if (url === '/api/trips') {
+            return tripsStatus === 200
+                ? new Response(JSON.stringify({ trips }), {
+                      status: 200,
+                      headers: { 'Content-Type': 'application/json' },
+                  })
+                : new Response(null, { status: tripsStatus })
+        }
+        throw new Error(`Unexpected test request: ${url}`)
+    })
+}
 
 // Display loaded trips and open the selected trip's workspace path.
 it('displays trips and navigates to the selected workspace', async () => {
@@ -21,15 +43,10 @@ it('displays trips and navigates to the selected workspace', async () => {
         startDate: '2026-11-03',
         endDate: '2026-11-04',
         description: null,
-        currentUserRole: 'OWNER',
+        currentUserRole: 'OWNER' as const,
     }
 
-    const fakeFetch = vi.fn().mockResolvedValue(
-        new Response(JSON.stringify({ trips: [trip] }), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
-        }),
-    )
+    const fakeFetch = mockHomeRequests([trip])
 
     vi.stubGlobal('fetch', fakeFetch)
 
@@ -59,12 +76,7 @@ it('displays trips and navigates to the selected workspace', async () => {
 
 // Show an empty state when the user has no trips.
 it('shows an empty state when there are no trips', async () => {
-    const fakeFetch = vi.fn().mockResolvedValue(
-        new Response(JSON.stringify({ trips: [] }), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
-        }),
-    )
+    const fakeFetch = mockHomeRequests()
 
     vi.stubGlobal('fetch', fakeFetch)
 
@@ -89,11 +101,7 @@ it('shows an empty state when there are no trips', async () => {
 
 // Show a request error instead of an empty state when loading fails.
 it('shows an error when loading trips fails', async () => {
-    const fakeFetch = vi.fn().mockResolvedValue(
-        new Response(null, {
-            status: 500,
-        }),
-    )
+    const fakeFetch = mockHomeRequests([], 500)
 
     vi.stubGlobal('fetch', fakeFetch)
 
