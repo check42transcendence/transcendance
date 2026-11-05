@@ -137,6 +137,10 @@ function mockWorkspaceRequests(
             return jsonResponse({ members: [] })
         }
 
+        if (url === `${tripPath}/activities` && !options?.method) {
+            return jsonResponse({ activities: [] })
+        }
+
         if (url === '/api/invitations?status=PENDING' && !options?.method) {
             return jsonResponse({ invitations: [] })
         }

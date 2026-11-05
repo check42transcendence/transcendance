@@ -16,7 +16,7 @@ const sizeStyles = {
 export function PageContainer({
     children,
     className = '',
-    size = 'wide'
+    size = 'wide',
 }: PageContainerProps) {
     return (
         <main className={`mx-auto ${sizeStyles[size]} px-4 py-12 ${className}`}>

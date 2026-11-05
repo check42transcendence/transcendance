@@ -31,3 +31,12 @@ export type {
 	PendingInvitation,
 	PendingInvitationsResponse,
 } from './api/membership.types.js'
+
+export type {
+	Activity,
+	CreateActivityRequest,
+	UpdateActivityRequest,
+	DeleteActivityResult,
+	ActivityResponse,
+	ActivityListResponse,
+} from './api/activities.types.js'

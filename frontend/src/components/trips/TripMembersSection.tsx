@@ -40,9 +40,7 @@ export function TripMembersSection({
     const [inviteLoading, setInviteLoading] = useState(false)
     const [inviteError, setInviteError] = useState('')
     const [inviteSuccess, setInviteSuccess] = useState('')
-    const [inviteBy, setInviteBy] = useState<'username' | 'email'>(
-        'username',
-    )
+    const [inviteBy, setInviteBy] = useState<'username' | 'email'>('username')
     const [inviteIdentifier, setInviteIdentifier] = useState('')
 
     // Load members again when the trip changes.
@@ -175,9 +173,7 @@ export function TripMembersSection({
                 {t('membership.title')}
             </h2>
 
-            {membersLoading && (
-                <p role="status">{t('membership.loading')}</p>
-            )}
+            {membersLoading && <p role="status">{t('membership.loading')}</p>}
 
             {!membersLoading && membersError && (
                 <p role="alert">{membersError}</p>
@@ -211,7 +207,7 @@ export function TripMembersSection({
                 <>
                     <Button
                         type="button"
-                        className='mt-4'
+                        className="mt-4"
                         onClick={() => setInviteOpen(true)}
                     >
                         {t('membership.invite.action')}
@@ -257,9 +253,10 @@ export function TripMembersSection({
                                 name="inviteBy"
                                 value={inviteBy}
                                 onChange={(event) => {
-                                    setInviteBy(event.currentTarget.value === 'email'
-                                        ? 'email'
-                                        : 'username'
+                                    setInviteBy(
+                                        event.currentTarget.value === 'email'
+                                            ? 'email'
+                                            : 'username',
                                     )
                                     setInviteIdentifier('')
                                     setInviteError('')
@@ -285,7 +282,9 @@ export function TripMembersSection({
                                 type={inviteBy === 'email' ? 'email' : 'text'}
                                 value={inviteIdentifier}
                                 onChange={(event) => {
-                                    setInviteIdentifier(event.currentTarget.value)
+                                    setInviteIdentifier(
+                                        event.currentTarget.value,
+                                    )
                                     setInviteError('')
                                     setInviteSuccess('')
                                 }}
@@ -300,9 +299,7 @@ export function TripMembersSection({
                             )}
 
                             {inviteSuccess && (
-                                <p role="status">
-                                    {inviteSuccess}
-                                </p>
+                                <p role="status">{inviteSuccess}</p>
                             )}
                         </form>
                     </Modal>
