@@ -21,6 +21,9 @@ Currently implemented:
   Owner-only deletion with confirmation and error feedback.
 - Membership UI for member lists, invitations, acceptance/rejection, and leaving,
   verified with mocked requests; real backend integration is pending in #92.
+- Activity UI with day grouping, time ordering, creation, editing, deletion, and
+  version-conflict handling. MSW supports browser previews; real backend integration
+  is pending. See the [frontend guide](frontend/README.md#activity-api-preview).
 - Shared UI tokens and reusable form controls, cards, modals, tabs, and notifications using
   Tailwind CSS v4, Inter, and Lucide. See the [frontend guide](frontend/README.md)
   for component usage and styling conventions.
@@ -29,7 +32,8 @@ Currently implemented:
   PostgreSQL, bcrypt password hashing, and JWT authentication cookies.
 - PostgreSQL with persistent storage and Prisma database integration.
 - Trip, membership, itinerary-day, Proposal, and ProposalVote database models,
-  migrations, and constraint tests. Proposal APIs and UI are still pending.
+  migrations, and constraint tests. Proposal creation, list, and detail APIs are
+  implemented; voting, adoption, and Proposal UI remain pending.
 - Authenticated Trip creation with automatic Owner/Days, plus member-scoped list,
   detail, and Days APIs.
 - Owner-only Trip deletion, cleaning up memberships and Days while preserving users
@@ -45,7 +49,8 @@ log the user in; login sets a Secure, HttpOnly cookie. Logout clears the
 cookie without revoking issued JWTs.
 `/home` lists the current user's trips; `/trips/new` creates a Trip.
 `/trips/:tripId` loads Workspace details and Days directly from the backend.
-Activity and Proposal UI, plus real-time collaboration, are not implemented yet.
+Activity UI has mocked-request tests; real backend integration is pending.
+Proposal UI and real-time collaboration are not implemented yet.
 See the [P0 database design](docs/database/p0-database-erd.md) for the target
 structure and current implementation status.
 
@@ -57,7 +62,7 @@ and publicly trusted certificates are not configured yet.
 - `frontend/`: React application, frontend Dockerfile, and Nginx configuration.
 - `backend/`: NestJS application, Prisma configuration and schema, and
   backend Dockerfile.
-- `shared/`: Auth/Trip API types shared by the frontend and backend.
+- `shared/`: API types shared by the frontend and backend.
 - `compose.yml`: frontend, backend, PostgreSQL, and a one-shot migration service.
 - `e2e/`: Playwright tests, configuration, and test runner Dockerfile.
 - `compose.e2e.yml` and `.env.e2e.example`: isolated browser test environment.

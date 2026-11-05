@@ -25,8 +25,7 @@ export const en = {
     'auth.login.description': 'Sign in to continue to your trips.',
     'auth.login.placeholders.password': 'Enter your password',
     'auth.login.noAccount': "Don't have an account?",
-    'auth.login.validation.required':
-        'Please enter your email and password.',
+    'auth.login.validation.required': 'Please enter your email and password.',
     'auth.login.error': 'Unable to sign in. Please try again.',
 
     // Registration page text, validation, and result messages.
@@ -37,21 +36,17 @@ export const en = {
     'auth.register.fields.confirmPassword': 'Confirm password',
     'auth.register.placeholders.username': 'Choose a username',
     'auth.register.placeholders.password': 'Create a password',
-    'auth.register.placeholders.confirmPassword':
-        'Enter your password again',
+    'auth.register.placeholders.confirmPassword': 'Enter your password again',
     'auth.register.hasAccount': 'Already have an account?',
     'auth.register.validation.required': 'Please complete all fields.',
-    'auth.register.validation.passwordMismatch':
-        'Passwords do not match.',
+    'auth.register.validation.passwordMismatch': 'Passwords do not match.',
     'auth.register.success': 'Account created. Please sign in.',
-    'auth.register.error':
-        'Unable to create an account. Please try again.',
+    'auth.register.error': 'Unable to create an account. Please try again.',
 
     // Session status and logout messages.
     'auth.session.checking': 'Checking session...',
     'auth.session.signedIn': 'Signed in',
-    'auth.session.error':
-        'Unable to check your session. Please try again.',
+    'auth.session.error': 'Unable to check your session. Please try again.',
 
     'auth.logout.action': 'Sign out',
     'auth.logout.pending': 'Signing out...',
@@ -78,26 +73,21 @@ export const en = {
     'trips.home.title': 'My trips',
     'trips.home.loading': 'Loading your trips...',
     'trips.home.empty.title': 'No trips yet',
-    'trips.home.empty.description':
-        'Create a trip to start planning together.',
+    'trips.home.empty.description': 'Create a trip to start planning together.',
 
     // Create Trip page messages.
     'trips.create.title': 'Create trip',
-    'trips.create.validation.required':
-        'Please complete all required fields.',
+    'trips.create.validation.required': 'Please complete all required fields.',
     'trips.create.validation.dateRange':
         'End date must not be earlier than start date.',
-    'trips.create.validation.duration':
-        'A trip must not exceed 365 days.',
+    'trips.create.validation.duration': 'A trip must not exceed 365 days.',
     'trips.create.pending': 'Creating trip...',
-    'trips.create.error':
-        'Unable to create the trip. Please try again.',
+    'trips.create.error': 'Unable to create the trip. Please try again.',
 
     // Trip workspace page messages.
     'trips.workspace.title': 'Trip workspace',
     'trips.workspace.loading': 'Loading trip...',
-    'trips.workspace.error':
-        'Unable to load the trip. Please try again.',
+    'trips.workspace.error': 'Unable to load the trip. Please try again.',
     'trips.workspace.days.title': 'Itinerary days',
     'trips.workspace.days.day': 'Day',
     'trips.workspace.unavailable':
@@ -137,14 +127,12 @@ export const en = {
         'No user found with that username or email.',
     'membership.invite.alreadyPending':
         'This user already has a pending invitation.',
-    'membership.invite.alreadyMember':
-        'This user is already a trip member.',
+    'membership.invite.alreadyMember': 'This user is already a trip member.',
 
     'membership.pending.title': 'Pending invitations',
     'membership.pending.loading': 'Loading invitations...',
     'membership.pending.empty': 'No pending invitations.',
-    'membership.pending.error':
-        'Unable to load invitations. Please try again.',
+    'membership.pending.error': 'Unable to load invitations. Please try again.',
     'membership.pending.invitedBy': 'Invited by',
     'membership.pending.accept': 'Accept',
     'membership.pending.reject': 'Reject',
@@ -153,4 +141,41 @@ export const en = {
     'membership.pending.unavailable':
         'This invitation is no longer available. Refresh the list.',
     'membership.pending.refresh': 'Refresh invitations',
+
+    // Activity lists, forms, and request feedback.
+    'activities.loading': 'Loading activities...',
+    'activities.error': 'Unable to load activities. Please try again.',
+    'activities.empty': 'No activities yet.',
+    'activities.createdBy': 'Created by',
+    'activities.updatedBy': 'Updated by',
+    'activities.actions.create': 'Add activity',
+    'activities.fields.day': 'Day',
+    'activities.fields.title': 'Activity title',
+    'activities.fields.startTime': 'Start time',
+    'activities.fields.endTime': 'End time (optional)',
+    'activities.fields.location': 'Location (optional)',
+    'activities.fields.description': 'Description (optional)',
+    'activities.validation.required':
+        'Please enter an activity title and start time.',
+    'activities.validation.timeRange':
+        'End time must not be earlier than start time.',
+    'activities.create.error':
+        'Unable to create the activity. Please try again.',
+    'activities.actions.delete': 'Delete activity',
+    'activities.delete.title': 'Delete this activity?',
+    'activities.delete.description':
+        'This will permanently delete the activity.',
+    'activities.delete.error':
+        'Unable to delete the activity. Please try again.',
+    'activities.actions.edit': 'Edit activity',
+    'activities.edit.error':
+        'Unable to update the activity. Please try again.',
+    'activities.actions.save': 'Save changes',
+    'activities.edit.conflict':
+        'This activity was updated by someone else. Your changes have been kept. Review the latest version before saving again.',
+    'activities.edit.viewLatest': 'View latest version',
+    'activities.edit.latestError':
+        'Unable to load the latest version. Please try again.',
+    'activities.edit.latestLoaded': 'Latest version loaded.',
+    'activities.edit.useLatest': 'Discard my changes and use latest version',
 }

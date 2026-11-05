@@ -116,11 +116,11 @@ function mockMemberRequests(
         if (url === '/api/trips' && !options?.method) {
             return jsonResponse({ trips: [] })
         }
-        if (
-            url === `${tripPath}/invitations` &&
-            options?.method === 'POST'
-        ) {
-            return invitationResponse?.clone() ?? new Response(null, { status: 201 })
+        if (url === `${tripPath}/invitations` && options?.method === 'POST') {
+            return (
+                invitationResponse?.clone() ??
+                new Response(null, { status: 201 })
+            )
         }
         throw new Error(
             `Unexpected test request: ${options?.method ?? 'GET'} ${url}`,
@@ -177,9 +177,7 @@ it('displays members and hides leave from the owner', async () => {
     expect(screen.getByText('Owner')).not.toBeNull()
     expect(screen.getByText('Member')).not.toBeNull()
     expect(screen.queryByRole('button', { name: 'Leave trip' })).toBeNull()
-    expect(
-        screen.getByRole('button', { name: 'Invite member' }),
-    ).not.toBeNull()
+    expect(screen.getByRole('button', { name: 'Invite member' })).not.toBeNull()
     expect(fakeFetch).toHaveBeenCalledWith(`${tripPath}/members`, {
         credentials: 'same-origin',
     })
@@ -202,9 +200,7 @@ it('keeps the workspace when a member cancels leaving', async () => {
     const fakeFetch = mockMemberRequests()
     renderMembers()
 
-    expect(
-        screen.queryByRole('button', { name: 'Invite member' }),
-    ).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Invite member' })).toBeNull()
 
     const dialog = await openLeaveDialog()
 
@@ -337,54 +333,47 @@ it.each([
         label: 'Email',
         identifier: 'invited-user@example.com',
     },
-])('invites a user by $method and shows success', async ({
-    method,
-    label,
-    identifier,
-}) => {
-    const fakeFetch = mockMemberRequests()
-    renderMembers('OWNER')
+])(
+    'invites a user by $method and shows success',
+    async ({ method, label, identifier }) => {
+        const fakeFetch = mockMemberRequests()
+        renderMembers('OWNER')
 
-    await screen.findByText('trip-owner')
+        await screen.findByText('trip-owner')
 
-    fireEvent.click(
-        screen.getByRole('button', { name: 'Invite member' }),
-    )
+        fireEvent.click(screen.getByRole('button', { name: 'Invite member' }))
 
-    const dialog = screen.getByRole('dialog', {
-        name: 'Invite a member',
-    })
+        const dialog = screen.getByRole('dialog', {
+            name: 'Invite a member',
+        })
 
-    fireEvent.change(
-        within(dialog).getByLabelText('Find user by'),
-        { target: { value: method } },
-    )
+        fireEvent.change(within(dialog).getByLabelText('Find user by'), {
+            target: { value: method },
+        })
 
-    const identifierInput = within(dialog).getByLabelText(label)
+        const identifierInput = within(dialog).getByLabelText(label)
 
-    fireEvent.change(identifierInput, {
-        target: { value: `  ${identifier}  ` },
-    })
+        fireEvent.change(identifierInput, {
+            target: { value: `  ${identifier}  ` },
+        })
 
-    fireEvent.click(
-        within(dialog).getByRole('button', { name: 'Invite member' }),
-    )
+        fireEvent.click(
+            within(dialog).getByRole('button', { name: 'Invite member' }),
+        )
 
-    await within(dialog).findByText('Invitation sent.')
+        await within(dialog).findByText('Invitation sent.')
 
-    expect(fakeFetch).toHaveBeenCalledWith(
-        `${tripPath}/invitations`,
-        {
+        expect(fakeFetch).toHaveBeenCalledWith(`${tripPath}/invitations`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ [method]: identifier }),
             credentials: 'same-origin',
-        },
-    )
+        })
 
-    expect((identifierInput as HTMLInputElement).value).toBe('')
-    expect(screen.getAllByRole('listitem')).toHaveLength(2)
-})
+        expect((identifierInput as HTMLInputElement).value).toBe('')
+        expect(screen.getAllByRole('listitem')).toHaveLength(2)
+    },
+)
 
 // Explain invitation conflicts while preserving input for correction or retry.
 it.each([
@@ -403,11 +392,7 @@ it.each([
         status: 409,
         message: 'This user is already a trip member.',
     },
-])('shows invitation feedback for $code', async ({
-    code,
-    status,
-    message,
-}) => {
+])('shows invitation feedback for $code', async ({ code, status, message }) => {
     const invitationResponse = jsonResponse(
         {
             error: {
@@ -424,9 +409,7 @@ it.each([
 
     await screen.findByText('trip-owner')
 
-    fireEvent.click(
-        screen.getByRole('button', { name: 'Invite member' }),
-    )
+    fireEvent.click(screen.getByRole('button', { name: 'Invite member' }))
 
     const dialog = screen.getByRole('dialog', {
         name: 'Invite a member',
@@ -443,14 +426,8 @@ it.each([
 
     fireEvent.click(submitButton)
 
-    expect((await within(dialog).findByRole('alert')).textContent).toBe(
-        message,
-    )
-    expect((identifierInput as HTMLInputElement).value).toBe(
-        'invited-user',
-    )
+    expect((await within(dialog).findByRole('alert')).textContent).toBe(message)
+    expect((identifierInput as HTMLInputElement).value).toBe('invited-user')
     expect((submitButton as HTMLButtonElement).disabled).toBe(false)
-    expect(
-        within(dialog).queryByText('Invitation sent.'),
-    ).toBeNull()
+    expect(within(dialog).queryByText('Invitation sent.')).toBeNull()
 })
