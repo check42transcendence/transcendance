@@ -57,8 +57,15 @@ test('completes the trip flow', async ({ page }) => {
     ).toBeVisible()
 
     // Shows the owner role and both generated itinerary days.
+    const tripDetailsCard = page
+        .getByRole('heading', {
+            name: 'Paris weekend',
+            exact: true,
+        })
+        .locator('..')
+
     await expect(
-        page.getByText('Owner', { exact: true }),
+        tripDetailsCard.getByText('Owner', { exact: true }),
     ).toBeVisible()
 
     await expect(
@@ -83,7 +90,7 @@ test('completes the trip flow', async ({ page }) => {
     ).toBeVisible()
 
     await expect(
-        page.getByText('Owner', { exact: true }),
+        tripDetailsCard.getByText('Owner', { exact: true }),
     ).toBeVisible()
 
     await expect(page.getByText('Day 1', { exact: true })).toBeVisible()
