@@ -370,7 +370,7 @@ export class TripsService {
       });
     }
 
-    // Hide missing Trips and non-member access using the same 404 response.
+    // Check permission before looking up the invitee.
     const membership = await this.prisma.tripMember.findFirst({
       where: { tripId, userId },
       select: { role: true },
@@ -411,64 +411,110 @@ export class TripsService {
       });
     }
 
-    // A current member cannot receive another invitation.
-    const existingMembership = await this.prisma.tripMember.findFirst({
-      where: { tripId, userId: invitee.id },
-      select: { userId: true },
-    });
-
-    if (existingMembership) {
-      throw new ConflictException({
-        error: {
-          code: 'MEMBERSHIP_ALREADY_EXISTS',
-          message: 'User is already a trip member',
-          details: {},
-        },
-      });
-    }
-
-    // Return a domain conflict before attempting the insert.
-    const existingInvitation = await this.prisma.tripInvitation.findFirst({
-      where: {
-        tripId,
-        inviteeId: invitee.id,
-        status: 'PENDING',
-      },
-      select: { id: true },
-    });
-
-    if (existingInvitation) {
-      throw new ConflictException({
-        error: {
-          code: 'INVITATION_ALREADY_PENDING',
-          message: 'Invitation is already pending',
-          details: {},
-        },
-      });
-    }
-
     try {
-      const invitation = await this.prisma.tripInvitation.create({
-        data: {
-          tripId,
-          invitedBy: userId,
-          inviteeId: invitee.id,
-          status: 'PENDING',
-        },
-        select: {
-          id: true,
-          status: true,
-          createdAt: true,
-        },
-      });
+      return await this.prisma.$transaction(async (tx) => {
+        // Lock the Trip row so deletion cannot race with invitation creation.
+        const lockedTrips = await tx.$queryRaw<Array<{ id: string }>>`
+          SELECT "id"
+          FROM "trip"
+          WHERE "id" = ${tripId}::uuid
+          FOR UPDATE
+        `;
 
-      return {
-        invitation: {
-          id: invitation.id,
-          status: invitation.status,
-          createdAt: invitation.createdAt.toISOString(),
-        },
-      };
+        if (lockedTrips.length === 0) {
+          throw new NotFoundException({
+            error: {
+              code: 'TRIP_NOT_FOUND',
+              message: 'Trip not found',
+              details: {},
+            },
+          });
+        }
+
+        // Recheck Owner permission while holding the Trip lock.
+        const currentMembership = await tx.tripMember.findFirst({
+          where: { tripId, userId },
+          select: { role: true },
+        });
+
+        if (!currentMembership) {
+          throw new NotFoundException({
+            error: {
+              code: 'TRIP_NOT_FOUND',
+              message: 'Trip not found',
+              details: {},
+            },
+          });
+        }
+
+        if (currentMembership.role !== 'OWNER') {
+          throw new ForbiddenException({
+            error: {
+              code: 'TRIP_OWNER_REQUIRED',
+              message: 'Trip owner required',
+              details: {},
+            },
+          });
+        }
+
+        // A current member cannot receive another invitation.
+        const existingMembership = await tx.tripMember.findFirst({
+          where: { tripId, userId: invitee.id },
+          select: { userId: true },
+        });
+
+        if (existingMembership) {
+          throw new ConflictException({
+            error: {
+              code: 'MEMBERSHIP_ALREADY_EXISTS',
+              message: 'User is already a trip member',
+              details: {},
+            },
+          });
+        }
+
+        // Return a domain conflict before attempting the insert.
+        const existingInvitation = await tx.tripInvitation.findFirst({
+          where: {
+            tripId,
+            inviteeId: invitee.id,
+            status: 'PENDING',
+          },
+          select: { id: true },
+        });
+
+        if (existingInvitation) {
+          throw new ConflictException({
+            error: {
+              code: 'INVITATION_ALREADY_PENDING',
+              message: 'Invitation is already pending',
+              details: {},
+            },
+          });
+        }
+
+        const invitation = await tx.tripInvitation.create({
+          data: {
+            tripId,
+            invitedBy: userId,
+            inviteeId: invitee.id,
+            status: 'PENDING',
+          },
+          select: {
+            id: true,
+            status: true,
+            createdAt: true,
+          },
+        });
+
+        return {
+          invitation: {
+            id: invitation.id,
+            status: invitation.status,
+            createdAt: invitation.createdAt.toISOString(),
+          },
+        };
+      });
     } catch (error: unknown) {
       // The database index also protects against concurrent duplicate requests.
       if (isPendingInvitationUniqueConflict(error)) {

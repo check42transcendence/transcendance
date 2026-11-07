@@ -496,6 +496,141 @@ describe('Trip HTTP integration', () => {
     ).toBe(1);
   });
 
+  // Serialize invitation creation against a concurrent Trip deletion.
+  it('returns TRIP_NOT_FOUND instead of 500 when the Trip is deleted during invitation creation', async () => {
+    const createResult = await app
+      .get(TripsService)
+      .create(ownerId, createInput);
+    const tripId = createResult.trip.id;
+
+    let lockBackendPid = 0;
+    let signalLockAcquired!: () => void;
+    const lockAcquired = new Promise<void>((resolve) => {
+      signalLockAcquired = resolve;
+    });
+
+    let releaseTripLock!: () => void;
+    const tripLockReleased = new Promise<void>((resolve) => {
+      releaseTripLock = resolve;
+    });
+
+    // Hold the Trip row lock to control the order of concurrent requests.
+    const lockTransaction = prisma.$transaction(async (tx) => {
+      const [backend] = await tx.$queryRaw<Array<{ pid: number }>>`
+        SELECT pg_backend_pid() AS pid
+      `;
+      lockBackendPid = backend.pid;
+
+      await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT "id"
+        FROM "trip"
+        WHERE "id" = ${tripId}::uuid
+        FOR UPDATE
+      `;
+
+      signalLockAcquired();
+      await tripLockReleased;
+    });
+
+    await lockAcquired;
+
+    // Wait until a request is actually blocked by the Trip row lock.
+    const waitForBlockedQuery = async (
+      kind: 'delete' | 'invitation',
+    ): Promise<void> => {
+      for (let attempt = 0; attempt < 500; attempt += 1) {
+        const [activity] = await prisma.$queryRaw<
+          Array<{ waiting: boolean }>
+        >`
+          SELECT EXISTS (
+            SELECT 1
+            FROM pg_stat_activity
+            WHERE datname = current_database()
+              AND wait_event_type = 'Lock'
+              AND pid <> ${lockBackendPid}
+              AND (
+                (
+                  ${kind} = 'delete'
+                  AND query ILIKE '%DELETE%'
+                  AND query ILIKE '%trip%'
+                )
+                OR
+                (
+                  ${kind} = 'invitation'
+                  AND (
+                    query ILIKE '%FOR UPDATE%'
+                    OR query ILIKE '%trip_invitation%'
+                  )
+                )
+              )
+          ) AS waiting
+        `;
+
+        if (activity?.waiting) {
+          return;
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+
+      throw new Error(`Timed out waiting for the ${kind} query to block`);
+    };
+
+    // Queue deletion first, then queue invitation creation behind it.
+    const responses = await (async () => {
+      const pendingRequests: Promise<unknown>[] = [];
+
+      try {
+        const deletionPromise = request(app.getHttpServer())
+          .delete(`/api/trips/${tripId}`)
+          .set('Cookie', ownerCookie)
+          .then((response) => response);
+
+        pendingRequests.push(deletionPromise);
+        await waitForBlockedQuery('delete');
+
+        const invitationPromise = request(app.getHttpServer())
+          .post(`/api/trips/${tripId}/invitations`)
+          .set('Cookie', ownerCookie)
+          .send({ username: `other-${otherUserId.slice(0, 8)}` })
+          .then((response) => response);
+
+        pendingRequests.push(invitationPromise);
+        await waitForBlockedQuery('invitation');
+
+        // Start collecting responses without waiting while the lock is held.
+        return Promise.all([deletionPromise, invitationPromise]);
+      } finally {
+        // Release the Trip lock before waiting for either HTTP request.
+        releaseTripLock();
+        await lockTransaction;
+        await Promise.allSettled(pendingRequests);
+      }
+    })();
+
+    const [deletionResponse, invitationResponse] = responses;
+
+    expect(deletionResponse.status).toBe(204);
+
+    expect(invitationResponse.status).toBe(404);
+    expect(invitationResponse.body).toEqual({
+      error: {
+        code: 'TRIP_NOT_FOUND',
+        message: 'Trip not found',
+        details: {},
+      },
+    });
+
+    // The Trip and any invitations must be absent after deletion.
+    expect(
+      await prisma.trip.findUnique({ where: { id: tripId } }),
+    ).toBeNull();
+
+    expect(
+      await prisma.tripInvitation.count({ where: { tripId } }),
+    ).toBe(0);
+  });
+
   // Concurrent duplicate requests must create only one pending invitation.
   it('prevents concurrent duplicate invitation creation', async () => {
     const createResult = await app
