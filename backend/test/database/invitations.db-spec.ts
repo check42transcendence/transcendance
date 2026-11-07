@@ -104,6 +104,20 @@ describe('Invitation database constraints', () => {
     expect(result.rows[0].responded_at).toBeNull();
   });
 
+  // A pending invitation must not create Trip membership.
+  it('does not create membership when a pending invitation is inserted', async () => {
+    await createInvitation();
+
+    const result = await testDatabase.query(
+      `SELECT "id"
+       FROM "trip_member"
+       WHERE "trip_id" = $1 AND "user_id" = $2`,
+      [tripId, inviteeId],
+    );
+
+    expect(result.rows).toHaveLength(0);
+  });
+
   // Reject a second pending invitation for the same Trip and invitee.
   it('rejects duplicate pending invitations for the same Trip and invitee', async () => {
     await createInvitation();
