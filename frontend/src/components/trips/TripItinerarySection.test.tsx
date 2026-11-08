@@ -296,7 +296,10 @@ it('creates an activity in the selected day', async () => {
         level: 4,
     })
     expect(onCreate).toHaveBeenCalledExactlyOnceWith(createInput)
-    expect(screen.queryByRole('dialog')).toBeNull()
+
+    await waitFor(() => {
+        expect(screen.queryByRole('dialog')).toBeNull()
+    })
     expect(
         within(getDay(1)).queryByRole('heading', { name: 'Gallery visit' }),
     ).toBeNull()
@@ -375,8 +378,10 @@ it('keeps the create draft after failure and allows retry', async () => {
         itineraryDayId: days[0].id,
         ...draft,
     })
+    await waitFor(() => {
     expect(screen.queryByRole('dialog')).toBeNull()
-})
+    })
+    })
 
 // Send the loaded version and move the saved activity to its new day.
 it('updates an activity using its original version', async () => {

@@ -2,14 +2,19 @@
 
 Playwright runs Chromium against the real frontend, backend, and PostgreSQL.
 - `auth.spec.ts`: registration, login, session restoration, logout, and protected-route redirects.
+
+- `membership.spec.ts`: two independent users complete the Owner invitation,
+  Pending inbox, Accept, Workspace access, Leave, and access revocation journey.
+
 - `trips.spec.ts`: login, Trip creation, Owner/Days display, Workspace refresh,
   deletion cancellation, confirmed deletion, and the updated Home list after refresh.
+
 - `validation.spec.ts`: invalid Auth requests through the API.
 
 Keep browser tests focused on core user journeys. Detailed validation, membership
-permissions, atomic Trip creation, and database cleanup are covered by frontend
-and backend Vitest tests. Activity and Invitation cleanup must be verified when
-those models are integrated.
+transaction edge cases and permissions, atomic Trip creation, and database cleanup
+are covered by frontend and backend Vitest tests. Activity cleanup must be verified
+when that model is integrated.
 
 ## Run locally
 

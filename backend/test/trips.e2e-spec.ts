@@ -1162,6 +1162,88 @@ describe('Trip HTTP integration', () => {
     ).toBe(false);
   });
 
+  // Deleted votes must not return when a former Member rejoins.
+  it('does not restore old Votes after a Member leaves and rejoins', async () => {
+    const createResult = await app
+      .get(TripsService)
+      .create(ownerId, createInput);
+
+    const tripId = createResult.trip.id;
+    const username = `other-${otherUserId.slice(0, 8)}`;
+
+    // Invite and accept the Member for the first time.
+    const firstInvitation = await request(app.getHttpServer())
+      .post(`/api/trips/${tripId}/invitations`)
+      .set('Cookie', ownerCookie)
+      .send({ username })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post(`/api/invitations/${firstInvitation.body.invitation.id}/accept`)
+      .set('Cookie', otherCookie)
+      .expect(201);
+
+    // Create a Proposal and a Vote belonging to the Member.
+    const proposal = await prisma.proposal.create({
+      data: {
+        tripId,
+        createdBy: ownerId,
+        title: 'Rejoin vote proposal',
+      },
+    });
+
+    await prisma.proposalVote.create({
+      data: {
+        proposalId: proposal.id,
+        userId: otherUserId,
+        decision: 'AGREE',
+      },
+    });
+
+    expect(
+      await prisma.proposalVote.count({
+        where: { proposalId: proposal.id, userId: otherUserId },
+      }),
+    ).toBe(1);
+
+    // Leave must delete the Member's old Vote.
+    await request(app.getHttpServer())
+      .post(`/api/trips/${tripId}/leave`)
+      .set('Cookie', otherCookie)
+      .expect(204);
+
+    expect(
+      await prisma.proposalVote.count({
+        where: { proposalId: proposal.id, userId: otherUserId },
+      }),
+    ).toBe(0);
+
+    // The Owner invites the same user again.
+    const secondInvitation = await request(app.getHttpServer())
+      .post(`/api/trips/${tripId}/invitations`)
+      .set('Cookie', ownerCookie)
+      .send({ username })
+      .expect(201);
+
+    // The Member accepts the new invitation.
+    await request(app.getHttpServer())
+      .post(`/api/invitations/${secondInvitation.body.invitation.id}/accept`)
+      .set('Cookie', otherCookie)
+      .expect(201);
+
+    expect(
+      await prisma.tripMember.count({
+        where: { tripId, userId: otherUserId },
+      }),
+    ).toBe(1);
+
+    // Rejoining must not restore the deleted Vote.
+    expect(
+      await prisma.proposalVote.count({
+        where: { proposalId: proposal.id, userId: otherUserId },
+      }),
+    ).toBe(0);
+  });
   // Preserve the domain 404 response for authenticated non-members.
   it('hides trip details and days from a non-member through HTTP', async () => {
     const createResult = await app
