@@ -341,6 +341,146 @@ describe('Trip HTTP integration', () => {
       .expect(404, tripNotFound);
   });
 
+  // Only the invitation recipient can accept a pending invitation once.
+  it('accepts a pending invitation for its recipient and creates one membership', async () => {
+    const createResult = await app
+      .get(TripsService)
+      .create(ownerId, createInput);
+    const tripId = createResult.trip.id;
+
+    const invitationResponse = await request(app.getHttpServer())
+      .post(`/api/trips/${tripId}/invitations`)
+      .set('Cookie', ownerCookie)
+      .send({ username: `other-${otherUserId.slice(0, 8)}` })
+      .expect(201);
+
+    const invitationId = invitationResponse.body.invitation.id as string;
+
+    // The inviter cannot accept an invitation addressed to another user.
+    const wrongUserResponse = await request(app.getHttpServer())
+      .post(`/api/invitations/${invitationId}/accept`)
+      .set('Cookie', ownerCookie)
+      .expect(404);
+
+    expect(wrongUserResponse.body.error.code).toBe('INVITATION_NOT_FOUND');
+
+    // The intended recipient accepts the invitation.
+    const acceptResponse = await request(app.getHttpServer())
+      .post(`/api/invitations/${invitationId}/accept`)
+      .set('Cookie', otherCookie)
+      .expect(201);
+
+    expect(acceptResponse.body).toEqual({
+      tripId,
+      userId: otherUserId,
+      role: 'MEMBER',
+      joinedAt: expect.any(String),
+    });
+
+    const savedInvitation = await prisma.tripInvitation.findUnique({
+      where: { id: invitationId },
+    });
+    expect(savedInvitation).toMatchObject({
+      tripId,
+      inviteeId: otherUserId,
+      status: 'ACCEPTED',
+    });
+    expect(savedInvitation?.respondedAt).toBeInstanceOf(Date);
+
+    const membership = await prisma.tripMember.findUnique({
+      where: {
+        tripId_userId: {
+          tripId,
+          userId: otherUserId,
+        },
+      },
+    });
+
+    expect(membership).toMatchObject({
+      tripId,
+      userId: otherUserId,
+      role: 'MEMBER',
+    });
+    expect(membership?.joinedAt.toISOString()).toBe(
+      acceptResponse.body.joinedAt,
+    );
+
+    // A repeated Accept must not create another Membership.
+    const repeatedResponse = await request(app.getHttpServer())
+      .post(`/api/invitations/${invitationId}/accept`)
+      .set('Cookie', otherCookie)
+      .expect(409);
+
+    expect(repeatedResponse.body.error.code).toBe('INVITATION_NOT_PENDING');
+
+    expect(
+      await prisma.tripMember.count({
+        where: { tripId, userId: otherUserId },
+      }),
+    ).toBe(1);
+  });
+
+  // Only the invitation recipient can reject a pending invitation once.
+  it('rejects a pending invitation without creating membership', async () => {
+    const createResult = await app
+      .get(TripsService)
+      .create(ownerId, createInput);
+    const tripId = createResult.trip.id;
+
+    const invitationResponse = await request(app.getHttpServer())
+      .post(`/api/trips/${tripId}/invitations`)
+      .set('Cookie', ownerCookie)
+      .send({ username: `other-${otherUserId.slice(0, 8)}` })
+      .expect(201);
+
+    const invitationId = invitationResponse.body.invitation.id as string;
+
+    // The inviter cannot reject an invitation addressed to another user.
+    const wrongUserResponse = await request(app.getHttpServer())
+      .post(`/api/invitations/${invitationId}/reject`)
+      .set('Cookie', ownerCookie)
+      .expect(404);
+
+    expect(wrongUserResponse.body.error.code).toBe('INVITATION_NOT_FOUND');
+
+    // The intended recipient rejects the invitation.
+    await request(app.getHttpServer())
+      .post(`/api/invitations/${invitationId}/reject`)
+      .set('Cookie', otherCookie)
+      .expect(204);
+
+    const savedInvitation = await prisma.tripInvitation.findUnique({
+      where: { id: invitationId },
+    });
+
+    expect(savedInvitation).toMatchObject({
+      tripId,
+      inviteeId: otherUserId,
+      status: 'REJECTED',
+    });
+    expect(savedInvitation?.respondedAt).toBeInstanceOf(Date);
+
+    // Reject must not create a Trip Membership.
+    expect(
+      await prisma.tripMember.findUnique({
+        where: {
+          tripId_userId: {
+            tripId,
+            userId: otherUserId,
+          },
+        },
+      }),
+    ).toBeNull();
+
+    // A repeated Reject must be rejected as an invalid transition.
+    const repeatedResponse = await request(app.getHttpServer())
+      .post(`/api/invitations/${invitationId}/reject`)
+      .set('Cookie', otherCookie)
+      .expect(409);
+
+    expect(repeatedResponse.body.error.code).toBe('INVITATION_NOT_PENDING');
+  });
+
   // Require the supported PENDING invitation status filter.
   it('rejects missing or unsupported invitation status filters', async () => {
     const validationError = {
@@ -718,6 +858,308 @@ describe('Trip HTTP integration', () => {
     expect(await prisma.trip.count({ where: { createdBy: ownerId } })).toBe(
       tripCountBefore,
     );
+  });
+
+  // Concurrent Accept requests must create exactly one Membership.
+  it('serializes concurrent Accept requests for the same invitation', async () => {
+    const createResult = await app
+      .get(TripsService)
+      .create(ownerId, createInput);
+    const tripId = createResult.trip.id;
+
+    const invitation = await prisma.tripInvitation.create({
+      data: {
+        tripId,
+        invitedBy: ownerId,
+        inviteeId: otherUserId,
+        status: 'PENDING',
+      },
+    });
+
+    const sendAccept = () =>
+      request(app.getHttpServer())
+        .post(`/api/invitations/${invitation.id}/accept`)
+        .set('Cookie', otherCookie);
+
+    const responses = await Promise.all([
+      sendAccept(),
+      sendAccept(),
+    ]);
+
+    expect(
+      responses.map((response) => response.status).sort((a, b) => a - b),
+    ).toEqual([201, 409]);
+
+    const conflictResponse = responses.find(
+      (response) => response.status === 409,
+    );
+    expect(conflictResponse?.body.error.code).toBe('INVITATION_NOT_PENDING');
+
+    expect(
+      await prisma.tripMember.count({
+        where: { tripId, userId: otherUserId },
+      }),
+    ).toBe(1);
+
+    const savedInvitation = await prisma.tripInvitation.findUnique({
+      where: { id: invitation.id },
+    });
+
+    expect(savedInvitation).toMatchObject({
+      status: 'ACCEPTED',
+      inviteeId: otherUserId,
+    });
+    expect(savedInvitation?.respondedAt).toBeInstanceOf(Date);
+  });
+
+  // Roll back the Membership if updating the Invitation fails.
+  it('rolls back Accept when the Invitation update fails', async () => {
+    const createResult = await app
+      .get(TripsService)
+      .create(ownerId, createInput);
+    const tripId = createResult.trip.id;
+
+    const invitation = await prisma.tripInvitation.create({
+      data: {
+        tripId,
+        invitedBy: ownerId,
+        inviteeId: otherUserId,
+        status: 'PENDING',
+      },
+    });
+
+    const suffix = randomUUID().replace(/-/g, '');
+    const functionName = `test_fail_accept_${suffix}`;
+    const triggerName = `test_fail_accept_trigger_${suffix}`;
+
+    try {
+      await prisma.$executeRawUnsafe(`
+        CREATE FUNCTION "${functionName}"()
+        RETURNS trigger AS $$
+        BEGIN
+          IF NEW."status" = 'ACCEPTED' THEN
+            RAISE EXCEPTION 'forced accept update failure';
+          END IF;
+          RETURN NEW;
+        END;
+        $$ LANGUAGE plpgsql;
+      `);
+
+      await prisma.$executeRawUnsafe(`
+        CREATE TRIGGER "${triggerName}"
+        BEFORE UPDATE ON "trip_invitation"
+        FOR EACH ROW
+        EXECUTE FUNCTION "${functionName}"();
+      `);
+
+      const response = await request(app.getHttpServer())
+        .post(`/api/invitations/${invitation.id}/accept`)
+        .set('Cookie', otherCookie);
+
+      expect(response.status).toBe(500);
+
+      // The Membership created earlier in the transaction must be rolled back.
+      expect(
+        await prisma.tripMember.count({
+          where: { tripId, userId: otherUserId },
+        }),
+      ).toBe(0);
+
+      // The Invitation must remain pending and unanswered.
+      const savedInvitation = await prisma.tripInvitation.findUnique({
+        where: { id: invitation.id },
+      });
+
+      expect(savedInvitation).toMatchObject({
+        status: 'PENDING',
+        respondedAt: null,
+      });
+    } finally {
+      await prisma.$executeRawUnsafe(`
+        DROP TRIGGER IF EXISTS "${triggerName}" ON "trip_invitation";
+      `);
+
+      await prisma.$executeRawUnsafe(`
+        DROP FUNCTION IF EXISTS "${functionName}"();
+      `);
+    }
+  });
+
+  // Accept must not create a duplicate Membership for a current Member.
+  it('rejects Accept when the invitee is already a current Trip member', async () => {
+    const createResult = await app
+      .get(TripsService)
+      .create(ownerId, createInput);
+    const tripId = createResult.trip.id;
+
+    await prisma.tripMember.create({
+      data: {
+        tripId,
+        userId: otherUserId,
+        role: 'MEMBER',
+      },
+    });
+
+    const invitation = await prisma.tripInvitation.create({
+      data: {
+        tripId,
+        invitedBy: ownerId,
+        inviteeId: otherUserId,
+        status: 'PENDING',
+      },
+    });
+
+    const response = await request(app.getHttpServer())
+      .post(`/api/invitations/${invitation.id}/accept`)
+      .set('Cookie', otherCookie)
+      .expect(409);
+
+    expect(response.body.error.code).toBe('MEMBERSHIP_ALREADY_EXISTS');
+
+    expect(
+      await prisma.tripMember.count({
+        where: { tripId, userId: otherUserId },
+      }),
+    ).toBe(1);
+
+    const savedInvitation = await prisma.tripInvitation.findUnique({
+      where: { id: invitation.id },
+    });
+
+    expect(savedInvitation).toMatchObject({
+      status: 'PENDING',
+      respondedAt: null,
+    });
+  });
+
+  // A Member can leave safely; the Owner cannot leave.
+  it('prevents Owner departure and removes a Member votes without deleting Proposals', async () => {
+    const createResult = await app
+      .get(TripsService)
+      .create(ownerId, createInput);
+    const tripId = createResult.trip.id;
+
+    await prisma.tripMember.create({
+      data: {
+        tripId,
+        userId: otherUserId,
+        role: 'MEMBER',
+      },
+    });
+
+    // The Owner must remain a member.
+    const ownerLeaveResponse = await request(app.getHttpServer())
+      .post(`/api/trips/${tripId}/leave`)
+      .set('Cookie', ownerCookie)
+      .expect(409);
+
+    expect(ownerLeaveResponse.body.error.code).toBe('OWNER_CANNOT_LEAVE');
+
+    const firstProposal = await prisma.proposal.create({
+      data: {
+        tripId,
+        createdBy: ownerId,
+        title: 'First proposal',
+      },
+    });
+
+    const secondProposal = await prisma.proposal.create({
+      data: {
+        tripId,
+        createdBy: ownerId,
+        title: 'Second proposal',
+      },
+    });
+
+    await prisma.proposalVote.createMany({
+      data: [
+        { proposalId: firstProposal.id, userId: ownerId, decision: 'AGREE' },
+        { proposalId: firstProposal.id, userId: otherUserId, decision: 'REJECT' },
+        { proposalId: secondProposal.id, userId: ownerId, decision: 'REJECT' },
+        { proposalId: secondProposal.id, userId: otherUserId, decision: 'AGREE' },
+      ],
+    });
+
+    // The Member leaves successfully.
+    await request(app.getHttpServer())
+      .post(`/api/trips/${tripId}/leave`)
+      .set('Cookie', otherCookie)
+      .expect(204);
+
+    // Membership is removed.
+    expect(
+      await prisma.tripMember.findUnique({
+        where: {
+          tripId_userId: {
+            tripId,
+            userId: otherUserId,
+          },
+        },
+      }),
+    ).toBeNull();
+
+    // All of this Member's votes in the Trip are removed.
+    expect(
+      await prisma.proposalVote.count({
+        where: {
+          userId: otherUserId,
+          proposal: { tripId },
+        },
+      }),
+    ).toBe(0);
+
+    // The Owner's votes remain.
+    expect(
+      await prisma.proposalVote.count({
+        where: {
+          userId: ownerId,
+          proposal: { tripId },
+        },
+      }),
+    ).toBe(2);
+
+    // Historical Proposals remain and their status is unchanged.
+    const savedProposals = await prisma.proposal.findMany({
+      where: { tripId },
+      orderBy: { title: 'asc' },
+    });
+
+    expect(savedProposals).toHaveLength(2);
+    expect(savedProposals.map((proposal) => proposal.status)).toEqual([
+      'PENDING',
+      'PENDING',
+    ]);
+
+    const tripNotFound = {
+      error: {
+        code: 'TRIP_NOT_FOUND',
+        message: 'Trip not found',
+        details: {},
+      },
+    };
+
+    // The former Member immediately loses REST access.
+    for (const route of [
+      `/api/trips/${tripId}`,
+      `/api/trips/${tripId}/members`,
+      `/api/trips/${tripId}/days`,
+    ]) {
+      await request(app.getHttpServer())
+        .get(route)
+        .set('Cookie', otherCookie)
+        .expect(404, tripNotFound);
+    }
+
+    const tripList = await request(app.getHttpServer())
+      .get('/api/trips')
+      .set('Cookie', otherCookie)
+      .expect(200);
+
+    expect(
+      tripList.body.trips.some(
+        (trip: { id: string }) => trip.id === tripId,
+      ),
+    ).toBe(false);
   });
 
   // Preserve the domain 404 response for authenticated non-members.

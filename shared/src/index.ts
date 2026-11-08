@@ -30,6 +30,7 @@ export type {
 	CreateInvitationRequest,
 	PendingInvitation,
 	PendingInvitationsResponse,
+	MembershipResult,
 } from './api/membership.types.js'
 
 export type {

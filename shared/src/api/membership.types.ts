@@ -36,3 +36,11 @@ export interface PendingInvitation {
 export interface PendingInvitationsResponse {
     invitations: PendingInvitation[]
 }
+
+// Result returned when an invitation is accepted.
+export interface MembershipResult {
+    tripId: string
+    userId: string
+    role: 'MEMBER'
+    joinedAt: string
+}
