@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { TripsService } from './trips.service.js';
 import { CreateTripDto } from './dto/create-trip.dto.js';
+import { CreateInvitationDto } from './dto/create-invitation.dto.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 
 @Controller('trips')
@@ -39,6 +40,25 @@ export class TripsController {
     @Param('tripId', new ParseUUIDPipe()) tripId: string,
   ) {
     return this.tripsService.findOne(user.sub, tripId);
+  }
+
+  // Create an invitation; the service enforces Owner permission.
+  @Post(':tripId/invitations')
+  createInvitation(
+    @CurrentUser() user: { sub: string },
+    @Param('tripId', new ParseUUIDPipe()) tripId: string,
+    @Body() input: CreateInvitationDto,
+  ) {
+    return this.tripsService.createInvitation(user.sub, tripId, input);
+  }
+
+  // Request current trip members for the authenticated user.
+  @Get(':tripId/members')
+  findMembers(
+    @CurrentUser() user: { sub: string },
+    @Param('tripId', new ParseUUIDPipe()) tripId: string,
+  ) {
+    return this.tripsService.findMembers(user.sub, tripId);
   }
 
   // Request itinerary days for the authenticated user.
