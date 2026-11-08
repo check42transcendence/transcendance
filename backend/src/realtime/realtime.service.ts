@@ -8,8 +8,6 @@ import type {
 } from '@tripcollab/shared';
 
 import { TripGateway } from './trip.gateway.js';
-import { UUID } from 'crypto';
-import { stringify } from 'querystring';
 
 @Injectable()
 export class RealtimeService {
