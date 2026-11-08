@@ -1,10 +1,11 @@
 
 import { randomUUID } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
-
 import type { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
+import request from 'supertest';
+import cookieParser from 'cookie-parser';
 
 import { io, type Socket } from 'socket.io-client';
 
@@ -55,6 +56,9 @@ describe('Realtime Gateway (E2E)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+
+	app.use(cookieParser());
+	app.setGlobalPrefix('api');
 
     await app.init();
     await app.listen(0);
@@ -793,5 +797,57 @@ describe('Realtime Gateway (E2E)', () => {
       expect(ack).toEqual({ ok: false });
       expect(isInTripRoom(client, trip.id)).toBe(false);
     });
+
+	it('removes all sockets after real HTTP Trip deletion', async () => {
+		const owner = await createTestUser();
+		const member = await createTestUser();
+		const trip = await createTestTrip(owner.id);
+
+		await addMember(trip.id, member.id);
+
+		const ownerSocket = await connectAs(owner.id);
+		const memberSocket1 = await connectAs(member.id);
+		const memberSocket2 = await connectAs(member.id);
+
+		const sockets = [ownerSocket, memberSocket1, memberSocket2];
+
+		// All sockets subscribe to the same Trip.
+		for (const socket of sockets) {
+			expect(
+			await sendTripEvent(socket, 'trip:subscribe', trip.id),
+			).toEqual({ ok: true });
+		}
+
+		// Verify subscriptions exist before deletion.
+		for (const socket of sockets) {
+			expect(isInTripRoom(socket, trip.id)).toBe(true);
+		}
+
+		// Authenticate the real HTTP DELETE request.
+		const token = jwtService.sign({ sub: owner.id });
+
+		await request(app.getHttpServer())
+			.delete(`/api/trips/${trip.id}`)
+			.set('Cookie', `token=${token}`)
+			.expect(204);
+
+		// Verify database deletion.
+		expect(
+			await prisma.trip.findUnique({
+			where: { id: trip.id },
+			}),
+		).toBeNull();
+
+		// Verify all subscriptions were revoked.
+		for (const socket of sockets) {
+			expect(isInTripRoom(socket, trip.id)).toBe(false);
+			expect(socket.connected).toBe(true);
+
+			// Deleted Trip cannot be subscribed to again.
+			expect(
+			await sendTripEvent(socket, 'trip:subscribe', trip.id),
+			).toEqual({ ok: false });
+		}
+	});
   });
 });

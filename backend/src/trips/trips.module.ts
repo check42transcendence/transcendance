@@ -9,9 +9,11 @@ import { PrismaModule } from '../database/prisma.module.js';
 
 import { UsersModule } from '../users/users.module.js';
 
+import { RealtimeModule } from '../realtime/realtime.module.js';
+
 // Connect trip endpoints to database and user lookup services.
 @Module({
-  imports: [PrismaModule, UsersModule],
+  imports: [PrismaModule, UsersModule, RealtimeModule,],
   controllers: [TripsController, InvitationsController],
   providers: [TripsService],
 })

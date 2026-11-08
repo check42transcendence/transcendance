@@ -75,6 +75,14 @@ export class TripGateway implements OnGatewayInit {
 
 			const room = `trip:${tripId}`;
 			await socket.join(room);
+			const stillAllowed = socket.connected &&
+				await this.membershipAccess.canSubscribe(userId, tripId);
+
+			if (!stillAllowed) {
+				await socket.leave(room);
+				ack?.({ ok: false });
+				return;
+			}
 			if (!socket.connected) {
 				await socket.leave(room);
 				ack?.({ ok: false });
