@@ -16,6 +16,9 @@ import {
   resetTestDatabase,
 } from './test-database.js';
 
+import type { UsersRepository } from '../../src/users/users.repository.js';
+import type { RealtimeService } from '../../src/realtime/realtime.service.js';
+
 describe('TripsService database integration', () => {
   let prisma: PrismaService;
   let tripsService: TripsService;
@@ -30,18 +33,31 @@ describe('TripsService database integration', () => {
     description: null,
   };
 
+  const usersRepositoryMock = {
+    findByUsername: vi.fn(),
+    findByEmail: vi.fn(),
+  };
+
+  const realtimeMock = {
+    removeTripRoom: vi.fn().mockResolvedValue(undefined),
+  };
+
   // Connect the service to the dedicated test database.
   beforeAll(async () => {
     vi.stubEnv('DATABASE_URL', getTestDatabaseUrl());
-
     prisma = new PrismaService();
-    tripsService = new TripsService(prisma);
+    tripsService = new TripsService(
+		prisma,
+		usersRepositoryMock as unknown as UsersRepository,
+		realtimeMock as unknown as RealtimeService,
+	);
 
     await prisma.$connect();
   });
 
   // Clear test data and create a trip creator before each test.
   beforeEach(async () => {
+	vi.clearAllMocks();
     await resetTestDatabase();
 
     const creatorUser = await prisma.user.create({
@@ -346,6 +362,8 @@ describe('TripsService database integration', () => {
 
     await tripsService.remove(creatorId, tripId);
 
+	expect(realtimeMock.removeTripRoom).toHaveBeenCalledExactlyOnceWith(tripId);
+
     expect(await prisma.trip.findUnique({ where: { id: tripId } })).toBeNull();
 
     expect(await prisma.tripMember.count({ where: { tripId: tripId } })).toBe(
@@ -408,6 +426,7 @@ describe('TripsService database integration', () => {
         },
       },
     });
+	expect(realtimeMock.removeTripRoom).not.toHaveBeenCalled();
 
     const savedTrip = await prisma.trip.findUniqueOrThrow({
       where: {
@@ -456,6 +475,7 @@ describe('TripsService database integration', () => {
         },
       });
     }
+	expect(realtimeMock.removeTripRoom).not.toHaveBeenCalled();
 
     const savedTrip = await prisma.trip.findUniqueOrThrow({
       where: {

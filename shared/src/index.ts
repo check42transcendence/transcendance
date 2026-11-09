@@ -40,3 +40,17 @@ export type {
 	ActivityResponse,
 	ActivityListResponse,
 } from './api/activities.types.js'
+
+
+export type {
+  UUID,
+  ISODateTime,
+  RealtimeEnvelope,
+  TripSubscriptionPayload,
+  SubscriptionAck,
+  RealtimeEventName,
+  ActivityRealtimeEventData,
+  ActivityRealtimeEventName,
+  ActivityRealtimePayload,
+  ActivityServerToClientEvents,
+} from './realtime/realtime.types.js';
