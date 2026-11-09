@@ -137,6 +137,10 @@ function mockWorkspaceRequests(
             return jsonResponse({ members: [] })
         }
 
+        if (url === `${tripPath}/activities` && !options?.method) {
+            return jsonResponse({ activities: [] })
+        }
+
         if (url === `${tripPath}/proposals` && !options?.method) {
             return jsonResponse({ proposals: [] })
         }

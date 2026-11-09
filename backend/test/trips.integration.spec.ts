@@ -35,7 +35,7 @@ describe('Trip endpoint authentication', () => {
   });
 
   // Reject unauthenticated requests before any database operation.
-  it('requires authentication for all five trip endpoints', async () => {
+  it('requires authentication for all eight trip and invitation endpoints', async () => {
     const tripId = '00000000-0000-4000-8000-000000000000';
     const authError = {
       error: {
@@ -56,14 +56,22 @@ describe('Trip endpoint authentication', () => {
       })
       .expect(401, authError);
 
-    // Reject list, detail, and day queries without authentication.
+    // Reject list, detail, day, member, and invitation queries without authentication.
     for (const path of [
       '/api/trips', // Trip list.
       `/api/trips/${tripId}`, // Trip detail.
       `/api/trips/${tripId}/days`, // Itinerary days.
+      `/api/trips/${tripId}/members`, // Trip members.
+      '/api/invitations?status=PENDING', // Pending invitations.
     ]) {
       await request(app.getHttpServer()).get(path).expect(401, authError);
     }
+
+    // Reject invitation creation without authentication.
+    await request(app.getHttpServer())
+      .post(`/api/trips/${tripId}/invitations`)
+      .send({ username: 'someone' })
+      .expect(401, authError);
 
     // Reject deletion without authentication.
     await request(app.getHttpServer())

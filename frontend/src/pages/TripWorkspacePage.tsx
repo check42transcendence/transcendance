@@ -8,6 +8,7 @@ import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
 import { TripMembersSection } from '../components/trips/TripMembersSection'
+import { TripItinerarySection } from '../components/trips/TripItinerarySection'
 import { t } from '../shared/i18n/translation'
 import { ProposalSection } from '../components/proposals/ProposalSection'
 
@@ -22,13 +23,14 @@ export function TripWorkspacePage() {
     const [tripLoading, setTripLoading] = useState(true)
     const [tripError, setTripError] = useState('')
 
+    // Pass fixed days to the itinerary section; activities load separately.
     const [days, setDays] = useState<ItineraryDay[]>([])
 
     const [deleteOpen, setDeleteOpen] = useState(false)
     const [deleteLoading, setDeleteLoading] = useState(false)
     const [deleteError, setDeleteError] = useState('')
 
-    // Load trip details when the route's trip ID changes.
+    // Load trip details and fixed days when the route's trip ID changes.
     useEffect(() => {
         let active = true
 
@@ -143,13 +145,11 @@ export function TripWorkspacePage() {
                             ? t('trips.shared.roles.owner')
                             : t('trips.shared.roles.member')}
                     </p>
-
                     {trip.description && (
                         <p className="whitespace-pre-wrap">
                             {trip.description}
                         </p>
                     )}
-
                     {trip.currentUserRole === 'OWNER' && (
                         <>
                             <Button
@@ -208,34 +208,17 @@ export function TripWorkspacePage() {
                 </Card>
             )}
 
+            {/* Itinerary and Activities */}
             {!tripLoading && !tripError && trip && (
-                <section className="mt-6">
-                    <h2 className="text-card-title font-medium">
-                        {t('trips.workspace.days.title')}
-                    </h2>
-
-                    <ol className="mt-3 space-y-3">
-                        {days.map((day) => (
-                            <li key={day.id}>
-                                <Card>
-                                    <p>
-                                        {t('trips.workspace.days.day')}{' '}
-                                        {day.dayNumber}
-                                    </p>
-                                    <p className="text-muted">{day.date}</p>
-                                </Card>
-                            </li>
-                        ))}
-                    </ol>
-                </section>
+                <TripItinerarySection tripId={trip.id} days={days} />
             )}
 
-            {/* Show Proposals only when the current Trip is accessible. */}
+            {/* Proposal */}
             {!tripLoading && !tripError && trip && (
                 <ProposalSection key={trip.id} tripId={trip.id} />
             )}
 
-            {/* Show the members area only after the trip loads successfully. */}
+            {/* Members */}
             {!tripLoading && !tripError && trip && (
                 <TripMembersSection
                     tripId={trip.id}

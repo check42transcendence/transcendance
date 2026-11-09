@@ -42,3 +42,27 @@ export type {
     ProposalListResponse,
     ProposalResponse,
 } from './api/proposals.types.js'
+
+
+export type {
+	Activity,
+	CreateActivityRequest,
+	UpdateActivityRequest,
+	DeleteActivityResult,
+	ActivityResponse,
+	ActivityListResponse,
+} from './api/activities.types.js'
+
+
+export type {
+  UUID,
+  ISODateTime,
+  RealtimeEnvelope,
+  TripSubscriptionPayload,
+  SubscriptionAck,
+  RealtimeEventName,
+  ActivityRealtimeEventData,
+  ActivityRealtimeEventName,
+  ActivityRealtimePayload,
+  ActivityServerToClientEvents,
+} from './realtime/realtime.types.js';

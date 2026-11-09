@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module.js';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
 import { TripsModule } from './trips/trips.module.js';
 import { ProposalsModule } from './proposals/proposals.module.js';
+import { RealtimeModule } from './realtime/realtime.module.js';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { ProposalsModule } from './proposals/proposals.module.js';
     AuthModule,
     TripsModule,
     ProposalsModule,
+	RealtimeModule,
   ],
   controllers: [AppController],
   providers: [

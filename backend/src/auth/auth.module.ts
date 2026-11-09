@@ -8,6 +8,7 @@ import {
   AuthUserRepository,
 } from './auth.dependencies.js';
 import { JwtModule } from '@nestjs/jwt';
+import { JwtIdentityService } from './jwt-identity.service.js';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 import { hash, verify } from './utils/password.util.js';
@@ -41,6 +42,7 @@ import { APP_GUARD } from '@nestjs/core';
     AuthService,
     AuthSessionService,
     JwtAuthGuard,
+	JwtIdentityService,
     {
       provide: APP_GUARD,
       useExisting: JwtAuthGuard,
@@ -56,6 +58,6 @@ import { APP_GUARD } from '@nestjs/core';
       useValue: { hash, verify },
     },
   ],
-  exports: [JwtModule, JwtAuthGuard],
+  exports: [JwtModule, JwtAuthGuard, JwtIdentityService],
 })
 export class AuthModule {}

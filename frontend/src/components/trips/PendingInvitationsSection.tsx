@@ -95,9 +95,7 @@ export function PendingInvitationsSection({
 
             // Remove the invitation only after the backend confirms success.
             setInvitations((previous) =>
-                previous.filter(
-                    (invitation) => invitation.id !== invitationId,
-                ),
+                previous.filter((invitation) => invitation.id !== invitationId),
             )
 
             // Refresh both lists because acceptance creates a membership.
@@ -109,10 +107,8 @@ export function PendingInvitationsSection({
             // Explain stale invitations separately from temporary failures.
             const unavailable =
                 error instanceof ApiError &&
-                (
-                    error.code === 'INVITATION_NOT_FOUND' ||
-                    error.code === 'INVITATION_NOT_PENDING'
-                )
+                (error.code === 'INVITATION_NOT_FOUND' ||
+                    error.code === 'INVITATION_NOT_PENDING')
 
             setDecisionErrors((previous) => ({
                 ...previous,
@@ -176,10 +172,14 @@ export function PendingInvitationsSection({
                                         <Button
                                             type="button"
                                             isLoading={
-                                                pendingActions[invitation.id] === 'accept'
+                                                pendingActions[
+                                                    invitation.id
+                                                ] === 'accept'
                                             }
                                             disabled={
-                                                pendingActions[invitation.id] === 'reject'
+                                                pendingActions[
+                                                    invitation.id
+                                                ] === 'reject'
                                             }
                                             onClick={() => {
                                                 void handleInvitationDecision(
@@ -195,10 +195,14 @@ export function PendingInvitationsSection({
                                             type="button"
                                             variant="secondary"
                                             isLoading={
-                                                pendingActions[invitation.id] === 'reject'
+                                                pendingActions[
+                                                    invitation.id
+                                                ] === 'reject'
                                             }
                                             disabled={
-                                                pendingActions[invitation.id] === 'accept'
+                                                pendingActions[
+                                                    invitation.id
+                                                ] === 'accept'
                                             }
                                             onClick={() => {
                                                 void handleInvitationDecision(
@@ -213,7 +217,10 @@ export function PendingInvitationsSection({
 
                                     {decisionErrors[invitation.id] && (
                                         <div className="space-y-2">
-                                            <p role="alert" className="text-danger">
+                                            <p
+                                                role="alert"
+                                                className="text-danger"
+                                            >
                                                 {decisionErrors[invitation.id]}
                                             </p>
 
@@ -222,11 +229,14 @@ export function PendingInvitationsSection({
                                                 variant="secondary"
                                                 onClick={() => {
                                                     setInvitationsRefreshVersion(
-                                                        (previous) => previous + 1,
+                                                        (previous) =>
+                                                            previous + 1,
                                                     )
                                                 }}
                                             >
-                                                {t('membership.pending.refresh')}
+                                                {t(
+                                                    'membership.pending.refresh',
+                                                )}
                                             </Button>
                                         </div>
                                     )}

@@ -62,7 +62,8 @@ migrations before using the updated backend. Generated files in
 ## Trips
 
 Trip models: `Trip`, `TripMember`, and `ItineraryDay`, linked to `User`.
-`Proposal` and `ProposalVote` models are also implemented; their APIs are pending.
+`Proposal` and `ProposalVote` models are also implemented, with Proposal creation,
+list, and detail APIs. Voting and adoption APIs remain pending.
 See the [P0 database design](../docs/database/p0-database-erd.md) for the full target.
 
 All Trip endpoints require authentication:

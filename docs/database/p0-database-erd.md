@@ -4,10 +4,10 @@ Reference date: 2026-10-27. This is the P0 target design, not a claim that all t
 
 ## Current implementation
 
-Status checked: 2026-11-01.
+Status checked: 2026-11-05.
 
 - Implemented tables: `user`, `trip`, `trip_member`, `itinerary_day`, `proposal`, and `proposal_vote`.
-- Invitations and Activities below are planned P0 tables. Proposal APIs, adoption, and the Activity relation are not implemented yet.
+- Invitations and Activities below are planned P0 tables. Proposal creation, list, and detail APIs are implemented; voting/adoption APIs and the Activity relation remain pending.
 - Trip creation now saves Owner membership and all Days atomically; member-scoped list, detail, and Days APIs are implemented.
 - Constraint tests are in `backend/test/database/trip.db-spec.ts` and `proposal.db-spec.ts`.
 

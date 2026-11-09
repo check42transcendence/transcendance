@@ -142,6 +142,43 @@ export const en = {
         'This invitation is no longer available. Refresh the list.',
     'membership.pending.refresh': 'Refresh invitations',
 
+    // Activity lists, forms, and request feedback.
+    'activities.loading': 'Loading activities...',
+    'activities.error': 'Unable to load activities. Please try again.',
+    'activities.empty': 'No activities yet.',
+    'activities.createdBy': 'Created by',
+    'activities.updatedBy': 'Updated by',
+    'activities.actions.create': 'Add activity',
+    'activities.fields.day': 'Day',
+    'activities.fields.title': 'Activity title',
+    'activities.fields.startTime': 'Start time',
+    'activities.fields.endTime': 'End time (optional)',
+    'activities.fields.location': 'Location (optional)',
+    'activities.fields.description': 'Description (optional)',
+    'activities.validation.required':
+        'Please enter an activity title and start time.',
+    'activities.validation.timeRange':
+        'End time must not be earlier than start time.',
+    'activities.create.error':
+        'Unable to create the activity. Please try again.',
+    'activities.actions.delete': 'Delete activity',
+    'activities.delete.title': 'Delete this activity?',
+    'activities.delete.description':
+        'This will permanently delete the activity.',
+    'activities.delete.error':
+        'Unable to delete the activity. Please try again.',
+    'activities.actions.edit': 'Edit activity',
+    'activities.edit.error':
+        'Unable to update the activity. Please try again.',
+    'activities.actions.save': 'Save changes',
+    'activities.edit.conflict':
+        'This activity was updated by someone else. Your changes have been kept. Review the latest version before saving again.',
+    'activities.edit.viewLatest': 'View latest version',
+    'activities.edit.latestError':
+        'Unable to load the latest version. Please try again.',
+    'activities.edit.latestLoaded': 'Latest version loaded.',
+    'activities.edit.useLatest': 'Discard my changes and use latest version',
+
     // Proposal decisions, list, creation, and detail.
     'proposals.decisions.title': 'Decisions',
     'proposals.decisions.description':
