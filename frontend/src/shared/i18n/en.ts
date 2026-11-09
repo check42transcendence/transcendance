@@ -178,4 +178,52 @@ export const en = {
         'Unable to load the latest version. Please try again.',
     'activities.edit.latestLoaded': 'Latest version loaded.',
     'activities.edit.useLatest': 'Discard my changes and use latest version',
+
+    // Proposal decisions, list, creation, and detail.
+    'proposals.decisions.title': 'Decisions',
+    'proposals.decisions.description':
+        'Share ideas and decide together what to add to your trip.',
+
+    'proposals.list.title': 'Proposals',
+    'proposals.list.loading': 'Loading proposals...',
+    'proposals.list.error': 'Unable to load proposals. Please try again.',
+    'proposals.list.empty.title': 'No proposals yet',
+    'proposals.list.empty.description':
+        'Create a proposal to suggest an idea for this trip.',
+
+    'proposals.create.action': 'Create proposal',
+    'proposals.create.title': 'Create a proposal',
+    'proposals.create.validation.required': 'Please enter a proposal title.',
+    'proposals.create.validation.maxLength':
+        'Proposal title must not exceed 160 characters.',
+    'proposals.create.validation.invalid':
+        'Please check the proposal information.',
+    'proposals.create.error':
+        'Unable to create the proposal. Please try again.',
+    'proposals.create.unavailable': 'This trip is no longer available.',
+
+    'proposals.fields.title': 'Proposal title',
+    'proposals.fields.description': 'Description (optional)',
+    'proposals.fields.creator': 'Created by',
+    'proposals.fields.createdAt': 'Created on',
+
+    'proposals.status.pending': 'Pending',
+    'proposals.status.accepted': 'Accepted',
+
+    'proposals.detail.action': 'View details',
+    'proposals.detail.title': 'Proposal details',
+    'proposals.detail.loading': 'Loading proposal details...',
+    'proposals.detail.error':
+        'Unable to load proposal details. Please try again.',
+    'proposals.detail.unavailable': 'This proposal is no longer available.',
+    'proposals.detail.noDescription': 'No description provided.',
+    'proposals.detail.votes': 'Vote summary',
+
+    'proposals.votes.agree': 'Agree',
+    'proposals.votes.reject': 'Reject',
+    'proposals.votes.pending': 'Not voted',
+    'proposals.votes.participants': 'Participants',
+    'proposals.votes.required': 'Required agrees',
+    'proposals.votes.yours': 'Your vote',
+    'proposals.votes.notVoted': 'Not voted yet',
 }
