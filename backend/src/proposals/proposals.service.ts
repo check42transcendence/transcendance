@@ -3,11 +3,13 @@ import {
   Injectable,
   Inject,
   NotFoundException,
+  ConflictException,
 } from '@nestjs/common';
 
 import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { CreateProposalDto } from './dto/create-proposal.dto.js';
+import { VoteProposalDto } from './dto/vote-proposal.dto.js';
 
 type ProposalRecord = {
   id: string;
@@ -187,6 +189,128 @@ private async lockTrip(
 
       return {
         proposal: this.toResponse(proposal, participantCount, userId),
+      };
+    });
+  }
+  
+  // Create or change one vote while preserving Trip/Proposal lock order.
+  async vote(
+    userId: string,
+    tripId: string,
+    proposalId: string,
+    input: VoteProposalDto,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Lock the parent Trip first.
+      const lockedTrips = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id
+        FROM "trip"
+        WHERE id = ${tripId}::uuid
+        FOR UPDATE
+      `;
+
+      if (lockedTrips.length === 0) {
+        this.tripNotFound();
+      }
+
+      // 2. Verify current Trip membership.
+      await this.requireTripMember(tx, userId, tripId);
+
+      // 3. Lock the Proposal, scoped to the requested Trip.
+      const lockedProposals = await tx.$queryRaw<
+        Array<{ id: string; status: string }>
+      >`
+        SELECT id, status
+        FROM "proposal"
+        WHERE id = ${proposalId}::uuid
+          AND trip_id = ${tripId}::uuid
+        FOR UPDATE
+      `;
+
+      if (lockedProposals.length === 0) {
+        throw new NotFoundException({
+          error: {
+            code: 'PROPOSAL_NOT_FOUND',
+            message: 'Proposal not found',
+            details: {},
+          },
+        });
+      }
+
+      // 4. Votes can be changed only while the Proposal is PENDING.
+      if (lockedProposals[0].status !== 'PENDING') {
+        throw new ConflictException({
+          error: {
+            code: 'PROPOSAL_VOTING_CLOSED',
+            message: 'Proposal voting is closed',
+            details: {},
+          },
+        });
+      }
+
+      // 5. Insert a first vote or update the existing vote.
+      await tx.proposalVote.upsert({
+        where: {
+          proposalId_userId: {
+            proposalId,
+            userId,
+          },
+        },
+        create: {
+          proposalId,
+          userId,
+          decision: input.decision,
+        },
+        update: {
+          decision: input.decision,
+          votedAt: new Date(),
+        },
+      });
+
+      // 6. Read the updated Proposal with votes from current members.
+      const proposal = await tx.proposal.findUniqueOrThrow({
+        where: {
+          id: proposalId,
+        },
+        include: {
+          creator: {
+            select: {
+              id: true,
+              username: true,
+            },
+          },
+          votes: {
+            where: {
+              user: {
+                memberships: {
+                  some: {
+                    tripId,
+                  },
+                },
+              },
+            },
+            select: {
+              userId: true,
+              decision: true,
+            },
+          },
+        },
+      });
+
+      // 7. Count current Trip participants.
+      const participantCount = await tx.tripMember.count({
+        where: {
+          tripId,
+        },
+      });
+
+      // 8. Reuse the existing canonical response and majority calculation.
+      return {
+        proposal: this.toResponse(
+          proposal,
+          participantCount,
+          userId,
+        ),
       };
     });
   }
