@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createProposal, getProposal, getProposals } from './proposals'
+import {
+    createProposal,
+    getProposal,
+    getProposals,
+    voteProposal,
+} from './proposals'
 
 afterEach(() => {
     vi.unstubAllGlobals()
@@ -93,6 +98,66 @@ describe('Proposal API', () => {
         await expect(getProposals('trip-1')).rejects.toMatchObject({
             code: 'TRIP_NOT_FOUND',
             status: 404,
+        })
+    })
+
+    it('sends a Vote using PUT JSON and returns the Proposal', async () => {
+        const result = {
+            proposal: {
+                id: 'proposal-1',
+                currentUserDecision: 'AGREE',
+            },
+        }
+
+        const fakeFetch = vi.fn().mockResolvedValue(jsonResponse(result))
+
+        vi.stubGlobal('fetch', fakeFetch)
+
+        await expect(
+            voteProposal('trip-1', 'proposal-1', {
+                decision: 'AGREE',
+            }),
+        ).resolves.toEqual(result)
+
+        expect(fakeFetch).toHaveBeenCalledWith(
+            '/api/trips/trip-1/proposals/proposal-1/vote',
+            {
+                method: 'PUT',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    decision: 'AGREE',
+                }),
+            },
+        )
+    })
+
+    it('propagates a closed-voting conflict from the backend', async () => {
+        vi.stubGlobal(
+            'fetch',
+            vi.fn().mockResolvedValue(
+                jsonResponse(
+                    {
+                        error: {
+                            code: 'PROPOSAL_VOTING_CLOSED',
+                            message: 'Proposal voting is closed',
+                            details: {},
+                        },
+                    },
+                    409,
+                ),
+            ),
+        )
+
+        await expect(
+            voteProposal('trip-1', 'proposal-1', {
+                decision: 'REJECT',
+            }),
+        ).rejects.toMatchObject({
+            code: 'PROPOSAL_VOTING_CLOSED',
+            status: 409,
         })
     })
 })

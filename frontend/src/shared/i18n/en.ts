@@ -226,4 +226,26 @@ export const en = {
     'proposals.votes.required': 'Required agrees',
     'proposals.votes.yours': 'Your vote',
     'proposals.votes.notVoted': 'Not voted yet',
+
+
+    // Proposal voting controls and request feedback.
+    'proposals.vote.title': 'Cast your vote',
+    'proposals.vote.agree': 'Vote agree',
+    'proposals.vote.reject': 'Vote reject',
+    'proposals.vote.submitting': 'Saving your vote...',
+    'proposals.vote.majorityReached': 'Required majority reached.',
+    'proposals.vote.majorityPending':
+        'Required majority not yet reached.',
+    'proposals.vote.closed': 'Voting is closed for this proposal.',
+    'proposals.vote.error':
+        'Unable to save your vote. Please try again.',
+    'proposals.vote.invalid': 'The vote was rejected as invalid.',
+    'proposals.vote.unavailable':
+        'This proposal is no longer available.',
+    'proposals.vote.permission':
+        'You no longer have permission to vote in this trip.',
+    'proposals.vote.session': 'Please sign in again to vote.',
+    'proposals.vote.closedConflict':
+        'Voting has closed. Refreshing the proposal details.',
+
 }

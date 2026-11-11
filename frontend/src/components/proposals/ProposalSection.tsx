@@ -1,7 +1,13 @@
 import { useEffect, useId, useState, type SubmitEvent } from 'react'
-import type { Proposal } from '@tripcollab/shared'
+import type { Proposal, VoteDecision } from '@tripcollab/shared'
 
-import { createProposal, getProposal, getProposals } from '../../api/proposals'
+import {
+    createProposal,
+    getProposal,
+    getProposals,
+    voteProposal,
+} from '../../api/proposals'
+
 import { ApiError } from '../../lib/http/api-error'
 import { t } from '../../shared/i18n/translation'
 
@@ -50,6 +56,9 @@ export function ProposalSection({ tripId }: ProposalSectionProps) {
     const [detailLoading, setDetailLoading] = useState(false)
     const [detailError, setDetailError] = useState('')
     const [detailVersion, setDetailVersion] = useState(0)
+    // Voting request state.
+    const [voteLoading, setVoteLoading] = useState(false)
+    const [voteError, setVoteError] = useState('')
 
     // Load Proposals whenever the Trip changes or a refresh is requested.
     useEffect(() => {
@@ -131,6 +140,85 @@ export function ProposalSection({ tripId }: ProposalSectionProps) {
         setTitle('')
         setDescription('')
         setCreateError('')
+    }
+
+    function closeDetail(): void {
+        if (voteLoading) return
+
+        setSelectedId(null)
+        setDetail(null)
+        setDetailLoading(false)
+        setDetailError('')
+        setVoteError('')
+    }
+
+    async function handleVote(decision: VoteDecision): Promise<void> {
+        if (
+            voteLoading ||
+            !selectedId ||
+            !detail ||
+            detail.id !== selectedId ||
+            detail.status !== 'PENDING' ||
+            detail.currentUserDecision === decision
+        ) {
+            return
+        }
+
+        const proposalId = selectedId
+
+        setVoteLoading(true)
+        setVoteError('')
+
+        try {
+            const result = await voteProposal(tripId, proposalId, {
+                decision,
+            })
+
+            // The backend response is authoritative.
+            setDetail(result.proposal)
+
+            // Keep the list consistent with the updated detail.
+            setProposals((current) =>
+                current.map((proposal) =>
+                    proposal.id === proposalId ? result.proposal : proposal,
+                ),
+            )
+        } catch (error) {
+            if (error instanceof ApiError) {
+                switch (error.code) {
+                    case 'VALIDATION_ERROR':
+                        setVoteError(t('proposals.vote.invalid'))
+                        break
+
+                    case 'PROPOSAL_VOTING_CLOSED':
+                        setVoteError(t('proposals.vote.closedConflict'))
+                        setDetailVersion((version) => version + 1)
+                        break
+
+                    case 'PROPOSAL_NOT_FOUND':
+                        setVoteError(t('proposals.vote.unavailable'))
+                        setDetailVersion((version) => version + 1)
+                        break
+
+                    case 'TRIP_NOT_FOUND':
+                    case 'MEMBERSHIP_REQUIRED':
+                    case 'ACCESS_DENIED':
+                        setVoteError(t('proposals.vote.permission'))
+                        break
+
+                    case 'AUTHENTICATION_REQUIRED':
+                        setVoteError(t('proposals.vote.session'))
+                        break
+
+                    default:
+                        setVoteError(t('proposals.vote.error'))
+                }
+            } else {
+                setVoteError(t('proposals.vote.error'))
+            }
+        } finally {
+            setVoteLoading(false)
+        }
     }
 
     async function handleCreate(
@@ -336,13 +424,14 @@ export function ProposalSection({ tripId }: ProposalSectionProps) {
 
             <Modal
                 open={selectedId !== null}
-                onClose={() => setSelectedId(null)}
+                onClose={closeDetail}
                 title={t('proposals.detail.title')}
                 footer={
                     <Button
                         type="button"
                         variant="secondary"
-                        onClick={() => setSelectedId(null)}
+                        disabled={voteLoading}
+                        onClick={closeDetail}
                     >
                         {t('common.actions.close')}
                     </Button>
@@ -427,6 +516,74 @@ export function ProposalSection({ tripId }: ProposalSectionProps) {
                                   ? t('proposals.votes.reject')
                                   : t('proposals.votes.notVoted')}
                         </p>
+
+                        <p className="text-small text-muted">
+                            {detail.status === 'ACCEPTED'
+                                ? t('proposals.vote.closed')
+                                : detail.voteSummary.canAdopt
+                                  ? t('proposals.vote.majorityReached')
+                                  : t('proposals.vote.majorityPending')}
+                        </p>
+
+                        <div className="space-y-2">
+                            <h4 className="font-medium">
+                                {t('proposals.vote.title')}
+                            </h4>
+
+                            <div className="flex flex-wrap gap-3">
+                                <Button
+                                    type="button"
+                                    variant={
+                                        detail.currentUserDecision === 'AGREE'
+                                            ? 'primary'
+                                            : 'secondary'
+                                    }
+                                    aria-pressed={
+                                        detail.currentUserDecision === 'AGREE'
+                                    }
+                                    disabled={
+                                        voteLoading ||
+                                        detail.status !== 'PENDING' ||
+                                        detail.currentUserDecision === 'AGREE'
+                                    }
+                                    onClick={() => void handleVote('AGREE')}
+                                >
+                                    {t('proposals.vote.agree')}
+                                </Button>
+
+                                <Button
+                                    type="button"
+                                    variant={
+                                        detail.currentUserDecision === 'REJECT'
+                                            ? 'primary'
+                                            : 'secondary'
+                                    }
+                                    aria-pressed={
+                                        detail.currentUserDecision === 'REJECT'
+                                    }
+                                    disabled={
+                                        voteLoading ||
+                                        detail.status !== 'PENDING' ||
+                                        detail.currentUserDecision === 'REJECT'
+                                    }
+                                    onClick={() => void handleVote('REJECT')}
+                                >
+                                    {t('proposals.vote.reject')}
+                                </Button>
+                            </div>
+
+                            {voteLoading && (
+                                <p role="status">
+                                    {t('proposals.vote.submitting')}
+                                </p>
+                            )}
+                        </div>
+
+                        {voteError && (
+                            <p role="alert" className="text-danger">
+                                {voteError}
+                            </p>
+                        )}
                     </div>
                 )}
             </Modal>
