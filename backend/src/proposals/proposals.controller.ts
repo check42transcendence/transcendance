@@ -6,11 +6,13 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Put,
 } from '@nestjs/common';
 
 import { ProposalsService } from './proposals.service.js';
 import { CreateProposalDto } from './dto/create-proposal.dto.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
+import { VoteProposalDto } from './dto/vote-proposal.dto.js';
 
 @Controller('trips/:tripId/proposals')
 export class ProposalsController {
@@ -28,7 +30,22 @@ export class ProposalsController {
   ) {
     return this.proposalsService.create(user.sub, tripId, input);
   }
-
+  
+  // Create or update the current user's vote on a Proposal.
+  @Put(':proposalId/vote')
+  vote(
+    @CurrentUser() user: { sub: string },
+    @Param('tripId', new ParseUUIDPipe()) tripId: string,
+    @Param('proposalId', new ParseUUIDPipe()) proposalId: string,
+    @Body() input: VoteProposalDto,
+  ) {
+    return this.proposalsService.vote(
+      user.sub,
+      tripId,
+      proposalId,
+      input,
+    );
+  }
   // List proposals in a trip.
   @Get()
   findAll(

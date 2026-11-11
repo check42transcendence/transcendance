@@ -34,6 +34,10 @@ export interface CreateProposalRequest {
     description?: string | null
 }
 
+export interface VoteRequest {
+    decision: VoteDecision
+}
+
 export interface ProposalListResponse {
     proposals: Proposal[]
 }

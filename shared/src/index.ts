@@ -39,6 +39,7 @@ export type {
     SharedProposal,
     Proposal,
     CreateProposalRequest,
+	VoteRequest,
     ProposalListResponse,
     ProposalResponse,
 } from './api/proposals.types.js'
