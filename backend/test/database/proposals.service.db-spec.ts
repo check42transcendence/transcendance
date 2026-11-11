@@ -772,4 +772,109 @@ it('avoids deadlock when Trip deletion races with Proposal creation', async () =
       result.proposal.voteSummary.rejectCount,
     ).toBe(1);
   });
+
+  it('excludes a former member vote from current statistics', async () => {
+    const created = await service.create(ownerId, tripId, input);
+    const proposalId = created.proposal.id;
+
+    // Both users vote while they are current Trip members.
+    await service.vote(ownerId, tripId, proposalId, {
+      decision: 'REJECT',
+    });
+
+    await service.vote(memberId, tripId, proposalId, {
+      decision: 'AGREE',
+    });
+
+    // Initially, both votes count.
+    const before = await service.findOne(
+      ownerId,
+      tripId,
+      proposalId,
+    );
+
+    expect(before.proposal.voteSummary).toMatchObject({
+      agreeCount: 1,
+      rejectCount: 1,
+      pendingCount: 0,
+      participantCount: 2,
+      requiredAgreeCount: 2,
+      canAdopt: false,
+    });
+
+    // Simulate the loss of Membership.
+    // The actual Leave transaction belongs to #89.
+    await prisma.tripMember.delete({
+      where: {
+        tripId_userId: {
+          tripId,
+          userId: memberId,
+        },
+      },
+    });
+
+    // Read the Proposal as the remaining OWNER.
+    const after = await service.findOne(
+      ownerId,
+      tripId,
+      proposalId,
+    );
+
+    expect(after.proposal.voteSummary).toMatchObject({
+      agreeCount: 0,
+      rejectCount: 1,
+      pendingCount: 0,
+      participantCount: 1,
+      requiredAgreeCount: 1,
+      canAdopt: false,
+    });
+
+    expect(after.proposal.currentUserDecision).toBe('REJECT');
+    expect(after.proposal.status).toBe('PENDING');
+  });
+
+  it('counts concurrent votes from different members correctly', async () => {
+    const created = await service.create(ownerId, tripId, input);
+    const proposalId = created.proposal.id;
+
+    // Two different members vote concurrently.
+    await Promise.all([
+      service.vote(ownerId, tripId, proposalId, {
+        decision: 'AGREE',
+      }),
+      service.vote(memberId, tripId, proposalId, {
+        decision: 'AGREE',
+      }),
+    ]);
+
+    // Verify persistence.
+    const votes = await prisma.proposalVote.findMany({
+      where: { proposalId },
+    });
+
+    expect(votes).toHaveLength(2);
+
+    expect(
+      votes.every((vote) => vote.decision === 'AGREE'),
+    ).toBe(true);
+
+    // Verify the canonical result.
+    const result = await service.findOne(
+      ownerId,
+      tripId,
+      proposalId,
+    );
+
+    expect(result.proposal.voteSummary).toMatchObject({
+      agreeCount: 2,
+      rejectCount: 0,
+      pendingCount: 0,
+      participantCount: 2,
+      requiredAgreeCount: 2,
+      canAdopt: true,
+    });
+
+    // Voting alone must not adopt the Proposal.
+    expect(result.proposal.status).toBe('PENDING');
+  });
 });
