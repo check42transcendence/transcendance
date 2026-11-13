@@ -141,6 +141,10 @@ function mockWorkspaceRequests(
             return jsonResponse({ activities: [] })
         }
 
+        if (url === `${tripPath}/proposals` && !options?.method) {
+            return jsonResponse({ proposals: [] })
+        }
+
         if (url === '/api/invitations?status=PENDING' && !options?.method) {
             return jsonResponse({ invitations: [] })
         }
@@ -200,6 +204,11 @@ it('loads member details and days on direct entry and remount', async () => {
     expect(screen.getByText('Day 1')).not.toBeNull()
     expect(screen.getByText(days[0].date)).not.toBeNull()
     expect(screen.queryByRole('button', { name: 'Delete trip' })).toBeNull()
+    // Verify the Proposal section is integrated into the Trip Workspace.
+    expect(
+        await screen.findByRole('heading', { name: 'Decisions' }),
+    ).not.toBeNull()
+    expect(await screen.findByText('No proposals yet')).not.toBeNull()
 
     view.unmount()
     renderWorkspace()

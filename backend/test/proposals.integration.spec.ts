@@ -1,6 +1,5 @@
-
 import { randomUUID } from 'node:crypto';
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import type { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
@@ -40,6 +39,12 @@ describe('Proposal HTTP integration', () => {
     })),
     findOne: vi.fn(async () => ({
       proposal: { id: proposalId },
+    })),
+    vote: vi.fn(async () => ({
+      proposal: {
+        id: proposalId,
+        currentUserDecision: 'AGREE',
+      },
     })),
   };
 
@@ -92,23 +97,27 @@ describe('Proposal HTTP integration', () => {
     }
   });
 
-  it('requires authentication for all three Proposal endpoints', async () => {
+  it('requires authentication for all Proposal endpoints', async () => {
     await request(app.getHttpServer())
       .post(basePath)
       .send({ title: 'Visit Louvre' })
       .expect(401, authError);
 
-    await request(app.getHttpServer())
-      .get(basePath)
-      .expect(401, authError);
+    await request(app.getHttpServer()).get(basePath).expect(401, authError);
 
     await request(app.getHttpServer())
       .get(`${basePath}/${proposalId}`)
+      .expect(401, authError);
+    
+      await request(app.getHttpServer())
+      .put(`${basePath}/${proposalId}/vote`)
+      .send({ decision: 'AGREE' })
       .expect(401, authError);
 
     expect(mockService.create).not.toHaveBeenCalled();
     expect(mockService.findAll).not.toHaveBeenCalled();
     expect(mockService.findOne).not.toHaveBeenCalled();
+    expect(mockService.vote).not.toHaveBeenCalled();
   });
 
   it('creates a Proposal with validated and trimmed input', async () => {
@@ -176,10 +185,7 @@ describe('Proposal HTTP integration', () => {
       .set('Cookie', cookie)
       .expect(200, { proposals: [] });
 
-    expect(mockService.findAll).toHaveBeenCalledWith(
-      userId,
-      tripId,
-    );
+    expect(mockService.findAll).toHaveBeenCalledWith(userId, tripId);
 
     await request(app.getHttpServer())
       .get(`${basePath}/${proposalId}`)
@@ -236,6 +242,88 @@ describe('Proposal HTTP integration', () => {
         error: {
           code: 'PROPOSAL_NOT_FOUND',
           message: 'Proposal not found',
+          details: {},
+        },
+      });
+  });
+
+  it('routes a valid Vote request to the Service', async () => {
+    await request(app.getHttpServer())
+      .put(`${basePath}/${proposalId}/vote`)
+      .set('Cookie', cookie)
+      .send({ decision: 'AGREE' })
+      .expect(200, {
+        proposal: {
+          id: proposalId,
+          currentUserDecision: 'AGREE',
+        },
+      });
+
+    expect(mockService.vote).toHaveBeenCalledWith(
+      userId,
+      tripId,
+      proposalId,
+      expect.objectContaining({
+        decision: 'AGREE',
+      }),
+    );
+  });
+
+    it('rejects invalid Vote bodies and extra fields', async () => {
+    const invalidInputs = [
+      {},
+      { decision: 'PENDING' },
+      { decision: 'INVALID' },
+      { decision: null },
+      { decision: 123 },
+      { decision: 'AGREE', userId: randomUUID() },
+      { decision: 'REJECT', status: 'ACCEPTED' },
+    ];
+
+    for (const input of invalidInputs) {
+      await request(app.getHttpServer())
+        .put(`${basePath}/${proposalId}/vote`)
+        .set('Cookie', cookie)
+        .send(input)
+        .expect(400, validationError);
+    }
+
+    expect(mockService.vote).not.toHaveBeenCalled();
+  });
+    it('rejects malformed Vote resource IDs', async () => {
+    await request(app.getHttpServer())
+      .put('/api/trips/not-a-uuid/proposals/123/vote')
+      .set('Cookie', cookie)
+      .send({ decision: 'AGREE' })
+      .expect(400, validationError);
+
+    await request(app.getHttpServer())
+      .put(`${basePath}/not-a-uuid/vote`)
+      .set('Cookie', cookie)
+      .send({ decision: 'REJECT' })
+      .expect(400, validationError);
+
+    expect(mockService.vote).not.toHaveBeenCalled();
+  });
+    it('preserves PROPOSAL_VOTING_CLOSED as HTTP 409', async () => {
+    mockService.vote.mockRejectedValueOnce(
+      new ConflictException({
+        error: {
+          code: 'PROPOSAL_VOTING_CLOSED',
+          message: 'Proposal voting is closed',
+          details: {},
+        },
+      }),
+    );
+
+    await request(app.getHttpServer())
+      .put(`${basePath}/${proposalId}/vote`)
+      .set('Cookie', cookie)
+      .send({ decision: 'REJECT' })
+      .expect(409, {
+        error: {
+          code: 'PROPOSAL_VOTING_CLOSED',
+          message: 'Proposal voting is closed',
           details: {},
         },
       });

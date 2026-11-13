@@ -10,6 +10,7 @@ import { CreateTripDto } from './dto/create-trip.dto.js';
 import { CreateInvitationDto } from './dto/create-invitation.dto.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { UsersRepository } from '../users/users.repository.js';
+import { RealtimeService } from '../realtime/realtime.service.js';
 import type {
   TripListResponse,
   TripResponse,
@@ -57,6 +58,7 @@ export class TripsService {
     private readonly prisma: PrismaService,
     @Inject(UsersRepository)
     private readonly usersRepository: UsersRepository,
+	private readonly realtime: RealtimeService,
   ) { }
 
   // Create a trip with its owner membership and all days.
@@ -937,5 +939,6 @@ export class TripsService {
         },
       });
     }
+	await this.realtime.removeTripRoom(tripId);
   }
 }

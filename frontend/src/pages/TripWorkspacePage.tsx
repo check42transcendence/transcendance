@@ -10,6 +10,7 @@ import { Modal } from '../components/ui/Modal'
 import { TripMembersSection } from '../components/trips/TripMembersSection'
 import { TripItinerarySection } from '../components/trips/TripItinerarySection'
 import { t } from '../shared/i18n/translation'
+import { ProposalSection } from '../components/proposals/ProposalSection'
 
 // Load and display the current trip workspace.
 export function TripWorkspacePage() {
@@ -144,13 +145,11 @@ export function TripWorkspacePage() {
                             ? t('trips.shared.roles.owner')
                             : t('trips.shared.roles.member')}
                     </p>
-
                     {trip.description && (
                         <p className="whitespace-pre-wrap">
                             {trip.description}
                         </p>
                     )}
-
                     {trip.currentUserRole === 'OWNER' && (
                         <>
                             <Button
@@ -209,11 +208,17 @@ export function TripWorkspacePage() {
                 </Card>
             )}
 
+            {/* Itinerary and Activities */}
             {!tripLoading && !tripError && trip && (
                 <TripItinerarySection tripId={trip.id} days={days} />
             )}
 
-            {/* Show the members area only after the trip loads successfully. */}
+            {/* Proposal */}
+            {!tripLoading && !tripError && trip && (
+                <ProposalSection key={trip.id} tripId={trip.id} />
+            )}
+
+            {/* Members */}
             {!tripLoading && !tripError && trip && (
                 <TripMembersSection
                     tripId={trip.id}
