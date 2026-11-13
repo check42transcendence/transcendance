@@ -880,6 +880,9 @@ export class TripsService {
         });
       }
     });
+
+    // Evict the departed member's existing Socket.IO subscriptions after commit.
+    await this.realtime.removeUserFromTrip(userId, tripId);
   }
 
   // Allow only the current owner to proceed with trip deletion.

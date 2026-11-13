@@ -798,6 +798,57 @@ describe('Realtime Gateway (E2E)', () => {
       expect(isInTripRoom(client, trip.id)).toBe(false);
     });
 
+  it('removes all Member sockets after real HTTP Leave', async () => {
+    const owner = await createTestUser();
+    const member = await createTestUser();
+    const trip = await createTestTrip(owner.id);
+    await addMember(trip.id, member.id);
+
+    const ownerSocket = await connectAs(owner.id);
+    const memberSocket1 = await connectAs(member.id);
+    const memberSocket2 = await connectAs(member.id);
+
+    // Owner and both Member sockets subscribe to the same Trip.
+    for (const socket of [ownerSocket, memberSocket1, memberSocket2]) {
+      expect(
+        await sendTripEvent(socket, 'trip:subscribe', trip.id),
+      ).toEqual({ ok: true });
+      expect(isInTripRoom(socket, trip.id)).toBe(true);
+    }
+
+    // The Member leaves through the real HTTP API.
+    const token = jwtService.sign({ sub: member.id });
+    await request(app.getHttpServer())
+      .post(`/api/trips/${trip.id}/leave`)
+      .set('Cookie', `token=${token}`)
+      .expect(204);
+
+    // Membership is removed from the database.
+    expect(
+      await prisma.tripMember.findUnique({
+        where: {
+          tripId_userId: {
+            tripId: trip.id,
+            userId: member.id,
+          },
+        },
+      }),
+    ).toBeNull();
+
+    // Owner remains subscribed; both Member sockets are evicted.
+    expect(isInTripRoom(ownerSocket, trip.id)).toBe(true);
+
+    for (const socket of [memberSocket1, memberSocket2]) {
+      expect(socket.connected).toBe(true);
+      expect(isInTripRoom(socket, trip.id)).toBe(false);
+
+      // A departed Member cannot subscribe again.
+      expect(
+        await sendTripEvent(socket, 'trip:subscribe', trip.id),
+      ).toEqual({ ok: false });
+    }
+  });
+
 	it('removes all sockets after real HTTP Trip deletion', async () => {
 		const owner = await createTestUser();
 		const member = await createTestUser();

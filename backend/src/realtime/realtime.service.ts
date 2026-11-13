@@ -73,7 +73,7 @@ export class RealtimeService {
 
 	for (const socket of sockets) {
 		if (socket.data.userId == userId) {
-			await socket.leave(room);
+			socket.leave(room);
 			}	
 		}
 	}
@@ -87,7 +87,7 @@ export class RealtimeService {
 	): Promise<void> {
 		const room = this.roomName(tripId);
 
-		await this.gateway.server
+		this.gateway.server
 			.in(room)
 			.socketsLeave(room);
 	}
