@@ -65,6 +65,15 @@ Client:
 
 Server checks current Membership before joining.
 
+
+Subscription authorization and Room joining are one atomic operation:
+
+- Lock the Trip row with `FOR SHARE`.
+- Check current OWNER/MEMBER Membership while holding that lock.
+- Keep the lock until `socket.join` completes and the socket is confirmed in the Room.
+- Failed authorization, database queries, or joining must return a negative acknowledgement and attempt to leave the Room.
+- Leave locks the same Trip row with `FOR UPDATE`, serializing Membership deletion against in-flight subscriptions.
+
 ### trip:unsubscribe
 
 Removes only realtime subscription, not Membership.
@@ -169,9 +178,24 @@ Clients must handle duplicates idempotently.
 
 Use explicit state values, never “toggle” operations.
 
+
+Before sending a protected Trip event, the server must revalidate current Membership
+for candidate sockets in the Trip Room:
+
+- Only sockets belonging to current OWNER/MEMBER users may receive the event.
+- Delivery is targeted to authorized sockets, not blindly broadcast to the entire Room.
+- The server holds the Trip row with `FOR SHARE` through event delivery, serializing against Leave's `FOR UPDATE` lock.
+- If the Trip or authorization query is unavailable, no event is sent (fail closed).
+- A stale physical Room subscription is never proof of current authorization.
+
 ## 10. Membership Changes
 
-After Member Leave succeeds, that User's active sockets must be removed from the Trip room.
+After Member Leave commits:
+
+- The server attempts to evict all of that User's sockets from the Trip Room, using bounded retries.
+- Socket cleanup happens after the database transaction commits. Cleanup failure must not roll back Membership deletion or report that Leave failed.
+- Broadcast-time Membership authorization must prevent a departed User from receiving protected events even if a stale socket remains in the Room.
+- A departed User must be denied any later subscription attempt.
 
 After Trip deletion, the room must stop protected Workspace delivery.
 
@@ -246,6 +270,10 @@ At minimum:
 14. Proposal-sourced Activity delete emits delete + reopen state;
 15. Leave stops protected Trip delivery;
 16. reconnect requires resubscription + REST resync.
+
+17. concurrent Subscribe and Leave serialize on the Trip row lock;
+18. a stale Room socket without Membership receives no protected broadcast;
+19. Socket cleanup failure after Leave commit does not restore Membership or Vote state.
 
 ## 15. Explicit Realtime Non-Goals
 

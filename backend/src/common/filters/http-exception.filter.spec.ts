@@ -159,16 +159,16 @@ describe('HttpExceptionFilter', () => {
     expect(reply).toHaveBeenCalledWith(response, body, 409);
   });
 
-  it('preserves the explicit Trip Socket cleanup 503 response', () => {
+  it('hides generic 503 exceptions as internal errors', () => {
     const { filter, reply } = createFilter();
-    const body = errorBody(
-      'TRIP_SOCKET_CLEANUP_FAILED',
-      'Unable to remove active Trip subscriptions. Please retry.',
+
+    filter.catch(new ServiceUnavailableException(), host);
+
+    expect(reply).toHaveBeenCalledWith(
+      response,
+      errorBody('INTERNAL_ERROR', 'Internal server error'),
+      500,
     );
-
-    filter.catch(new ServiceUnavailableException(body), host);
-
-    expect(reply).toHaveBeenCalledWith(response, body, 503);
   });
 
   it('hides unexpected internal exceptions', () => {

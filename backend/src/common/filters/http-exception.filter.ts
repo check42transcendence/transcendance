@@ -1,4 +1,4 @@
-import type { ApiErrorResponse } from '@tripcollab/shared'
+import type { ApiErrorResponse } from '@tripcollab/shared';
 import {
   ArgumentsHost,
   Catch,
@@ -11,17 +11,14 @@ import {
 } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
 
-function makeError(
-	code: string, 
-	message: string
-): ApiErrorResponse {
-	return { 
-		error: { 
-			code, 
-			message, 
-			details: {} 
-		} 
-	};
+function makeError(code: string, message: string): ApiErrorResponse {
+  return {
+    error: {
+      code,
+      message,
+      details: {},
+    },
+  };
 }
 
 // A deliberate domain/Auth error already has the frozen REST shape.
@@ -74,18 +71,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
       const status = exception.getStatus();
       const original: unknown = exception.getResponse();
 
-      // Preserve only this explicitly safe operational 503 response.
+      // Hide all unexpected server-side exceptions.
       if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
-        if (
-          status === HttpStatus.SERVICE_UNAVAILABLE &&
-          isApiErrorResponse(original) &&
-          original.error.code === 'TRIP_SOCKET_CLEANUP_FAILED'
-        ) {
-          httpAdapter.reply(response, original, status);
-          return;
-        }
-
-        // Never expose unexpected server-side exception details.
         this.replyInternalError(response);
         return;
       }
