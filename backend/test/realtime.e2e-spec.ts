@@ -537,6 +537,329 @@ describe('Realtime Gateway (E2E)', () => {
   // ------------------------------------------------------------------
 
   describe('RealtimeService', () => {
+    it('serializes a concurrent Subscribe with HTTP Leave', async () => {
+      const owner = await createTestUser();
+      const member = await createTestUser();
+      const trip = await createTestTrip(owner.id);
+
+      await addMember(trip.id, member.id);
+
+      const memberSocket = await connectAs(member.id);
+      const ownerSocket = await connectAs(owner.id);
+
+      await sendTripEvent(ownerSocket, 'trip:subscribe', trip.id);
+
+      const serverSocket = gateway.server.sockets.sockets.get(memberSocket.id!);
+
+      if (!serverSocket) {
+        throw new Error('Member server socket was not found');
+      }
+
+      // Pause Socket joining after the subscription has acquired FOR SHARE.
+      const originalJoin = serverSocket.join.bind(serverSocket);
+
+      let signalJoinStarted!: () => void;
+      const joinStarted = new Promise<void>((resolve) => {
+        signalJoinStarted = resolve;
+      });
+
+      let releaseJoin!: () => void;
+      const joinGate = new Promise<void>((resolve) => {
+        releaseJoin = resolve;
+      });
+
+      let subscribePromise: Promise<SubscriptionAck> | undefined;
+      let leavePromise: Promise<unknown> | undefined;
+
+      serverSocket.join = async (rooms) => {
+        signalJoinStarted();
+        await joinGate;
+        await originalJoin(rooms);
+      };
+
+      try {
+        subscribePromise = sendTripEvent(
+          memberSocket,
+          'trip:subscribe',
+          trip.id,
+        );
+
+        // This signal occurs inside joinIfCurrentMember's transaction.
+        await joinStarted;
+
+        // Start a real HTTP Leave while Subscribe holds FOR SHARE.
+        leavePromise = request(app.getHttpServer())
+          .post(`/api/trips/${trip.id}/leave`)
+          .set('Cookie', `token=${jwtService.sign({ sub: member.id })}`)
+          .then((response) => response);
+
+        // Verify that Leave is actually blocked on the Trip row lock.
+        let leaveIsBlocked = false;
+
+        for (let attempt = 0; attempt < 200; attempt += 1) {
+          const [state] = await prisma.$queryRaw<Array<{ waiting: boolean }>>`
+            SELECT EXISTS (
+              SELECT 1
+              FROM pg_stat_activity
+              WHERE datname = current_database()
+                AND pid <> pg_backend_pid()
+                AND wait_event_type = 'Lock'
+                AND query ILIKE '%FOR UPDATE%'
+                AND query ILIKE '%trip%'
+            ) AS waiting
+          `;
+
+          if (state?.waiting) {
+            leaveIsBlocked = true;
+            break;
+          }
+
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+
+        expect(leaveIsBlocked).toBe(true);
+
+        // Finish Subscribe; Leave can now acquire FOR UPDATE and commit.
+        releaseJoin();
+
+        expect(await subscribePromise).toEqual({ ok: true });
+
+        const leaveResponse = (await leavePromise) as { status: number };
+        expect(leaveResponse.status).toBe(204);
+      } finally {
+        // Always release the test gate, even when an assertion fails.
+        releaseJoin();
+        serverSocket.join = originalJoin;
+
+        const pending = [
+          ...(subscribePromise ? [subscribePromise] : []),
+          ...(leavePromise ? [leavePromise] : []),
+        ];
+
+        await Promise.allSettled(pending);
+      }
+
+      // Once Leave completes, the former Member must no longer be subscribed.
+      expect(isInTripRoom(memberSocket, trip.id)).toBe(false);
+
+      expect(
+        await prisma.tripMember.findUnique({
+          where: {
+            tripId_userId: {
+              tripId: trip.id,
+              userId: member.id,
+            },
+          },
+        }),
+      ).toBeNull();
+
+      // The current Owner remains authorized to receive Trip broadcasts.
+      const ownerReceived = new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          reject(new Error('Owner did not receive the Trip broadcast'));
+        }, 2000);
+
+        ownerSocket.once('activity:deleted', () => {
+          clearTimeout(timer);
+          resolve();
+        });
+      });
+
+      await realtime.emitActivityToTrip(trip.id, 'activity:deleted', {
+        activityId: randomUUID(),
+        reopenedProposalId: null,
+      });
+
+      await ownerReceived;
+    });
+
+
+    it('rejects a concurrent Subscribe queued behind HTTP Leave', async () => {
+      const owner = await createTestUser();
+      const member = await createTestUser();
+      const trip = await createTestTrip(owner.id);
+
+      await addMember(trip.id, member.id);
+
+      const memberSocket = await connectAs(member.id);
+
+      let lockBackendPid = 0;
+      let signalLockAcquired!: () => void;
+      const lockAcquired = new Promise<void>((resolve) => {
+        signalLockAcquired = resolve;
+      });
+
+      let releaseTripLock!: () => void;
+      const tripLockReleased = new Promise<void>((resolve) => {
+        releaseTripLock = resolve;
+      });
+
+      // Hold the Trip row lock so Leave can be queued before Subscribe.
+      const lockTransaction = prisma.$transaction(async (tx) => {
+        const [backend] = await tx.$queryRaw<Array<{ pid: number }>>`
+          SELECT pg_backend_pid() AS pid
+        `;
+        lockBackendPid = backend.pid;
+
+        await tx.$queryRaw<Array<{ id: string }>>`
+          SELECT "id"
+          FROM "trip"
+          WHERE "id" = ${trip.id}::uuid
+          FOR UPDATE
+        `;
+
+        signalLockAcquired();
+        await tripLockReleased;
+      });
+
+      await lockAcquired;
+
+      let leavePromise: Promise<{ status: number }> | undefined;
+      let subscribePromise: Promise<SubscriptionAck> | undefined;
+
+      const waitForBlockedQuery = async (
+        lockClause: 'FOR UPDATE' | 'FOR SHARE',
+      ): Promise<void> => {
+        for (let attempt = 0; attempt < 500; attempt += 1) {
+          const [state] = await prisma.$queryRaw<
+            Array<{ waiting: boolean }>
+          >`
+            SELECT EXISTS (
+              SELECT 1
+              FROM pg_stat_activity
+              WHERE datname = current_database()
+                AND pid <> ${lockBackendPid}
+                AND wait_event_type = 'Lock'
+                AND query ILIKE ${`%${lockClause}%`}
+                AND query ILIKE '%trip%'
+            ) AS waiting
+          `;
+
+          if (state?.waiting) {
+            return;
+          }
+
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+
+        throw new Error(`Timed out waiting for ${lockClause} to block`);
+      };
+
+      try {
+        // Queue Leave first.
+        leavePromise = request(app.getHttpServer())
+          .post(`/api/trips/${trip.id}/leave`)
+          .set(
+            'Cookie',
+            `token=${jwtService.sign({ sub: member.id })}`,
+          )
+          .then((response) => ({ status: response.status }));
+
+        await waitForBlockedQuery('FOR UPDATE');
+
+        // Queue Subscribe behind the waiting Leave request.
+        subscribePromise = memberSocket
+          .timeout(10000)
+          .emitWithAck('trip:subscribe', { tripId: trip.id });
+
+        await waitForBlockedQuery('FOR SHARE');
+      } finally {
+        // Release the blocker so Leave and Subscribe can finish.
+        releaseTripLock();
+        await lockTransaction;
+
+        const pending = [
+          ...(leavePromise ? [leavePromise] : []),
+          ...(subscribePromise ? [subscribePromise] : []),
+        ];
+
+        await Promise.allSettled(pending);
+      }
+
+      if (!leavePromise || !subscribePromise) {
+        throw new Error('Concurrent Leave/Subscribe requests were not started');
+      }
+
+      const [leaveResponse, subscribeAck] = await Promise.all([
+        leavePromise,
+        subscribePromise,
+      ]);
+
+      expect(leaveResponse.status).toBe(204);
+      expect(subscribeAck).toEqual({ ok: false });
+
+      expect(isInTripRoom(memberSocket, trip.id)).toBe(false);
+
+      expect(
+        await prisma.tripMember.findUnique({
+          where: {
+            tripId_userId: {
+              tripId: trip.id,
+              userId: member.id,
+            },
+          },
+        }),
+      ).toBeNull();
+    });
+
+    it('does not broadcast to a stale Room socket after Membership deletion', async () => {
+      const owner = await createTestUser();
+      const member = await createTestUser();
+      const trip = await createTestTrip(owner.id);
+
+      await addMember(trip.id, member.id);
+
+      const ownerSocket = await connectAs(owner.id);
+      const memberSocket = await connectAs(member.id);
+
+      await sendTripEvent(ownerSocket, 'trip:subscribe', trip.id);
+      await sendTripEvent(memberSocket, 'trip:subscribe', trip.id);
+
+      expect(isInTripRoom(memberSocket, trip.id)).toBe(true);
+
+      // Simulate a failed physical Socket eviction:
+      // Membership is deleted, but the socket remains in the Room.
+      await removeMember(trip.id, member.id);
+
+      expect(isInTripRoom(memberSocket, trip.id)).toBe(true);
+
+      const ownerEvents: unknown[] = [];
+      const memberEvents: unknown[] = [];
+
+      ownerSocket.on('activity:deleted', (event: unknown) => {
+        ownerEvents.push(event);
+      });
+
+      memberSocket.on('activity:deleted', (event: unknown) => {
+        memberEvents.push(event);
+      });
+
+      const ownerReceived = new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          reject(new Error('Owner did not receive the Trip broadcast'));
+        }, 2000);
+
+        ownerSocket.once('activity:deleted', () => {
+          clearTimeout(timer);
+          resolve();
+        });
+      });
+
+      await realtime.emitActivityToTrip(trip.id, 'activity:deleted', {
+        activityId: randomUUID(),
+        reopenedProposalId: null,
+      });
+
+      await ownerReceived;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(ownerEvents).toHaveLength(1);
+
+      // The stale socket remains physically subscribed but receives no event.
+      expect(isInTripRoom(memberSocket, trip.id)).toBe(true);
+      expect(memberEvents).toHaveLength(0);
+    });
+
     it('broadcasts only to subscribed Trip sockets', async () => {
       const owner = await createTestUser();
       const member = await createTestUser();
@@ -589,7 +912,7 @@ describe('Realtime Gateway (E2E)', () => {
         }),
       ]);
 
-      realtime.emitActivityToTrip(
+      await realtime.emitActivityToTrip(
         trip.id,
         'activity:deleted',
         {
@@ -797,6 +1120,57 @@ describe('Realtime Gateway (E2E)', () => {
       expect(ack).toEqual({ ok: false });
       expect(isInTripRoom(client, trip.id)).toBe(false);
     });
+
+  it('removes all Member sockets after real HTTP Leave', async () => {
+    const owner = await createTestUser();
+    const member = await createTestUser();
+    const trip = await createTestTrip(owner.id);
+    await addMember(trip.id, member.id);
+
+    const ownerSocket = await connectAs(owner.id);
+    const memberSocket1 = await connectAs(member.id);
+    const memberSocket2 = await connectAs(member.id);
+
+    // Owner and both Member sockets subscribe to the same Trip.
+    for (const socket of [ownerSocket, memberSocket1, memberSocket2]) {
+      expect(
+        await sendTripEvent(socket, 'trip:subscribe', trip.id),
+      ).toEqual({ ok: true });
+      expect(isInTripRoom(socket, trip.id)).toBe(true);
+    }
+
+    // The Member leaves through the real HTTP API.
+    const token = jwtService.sign({ sub: member.id });
+    await request(app.getHttpServer())
+      .post(`/api/trips/${trip.id}/leave`)
+      .set('Cookie', `token=${token}`)
+      .expect(204);
+
+    // Membership is removed from the database.
+    expect(
+      await prisma.tripMember.findUnique({
+        where: {
+          tripId_userId: {
+            tripId: trip.id,
+            userId: member.id,
+          },
+        },
+      }),
+    ).toBeNull();
+
+    // Owner remains subscribed; both Member sockets are evicted.
+    expect(isInTripRoom(ownerSocket, trip.id)).toBe(true);
+
+    for (const socket of [memberSocket1, memberSocket2]) {
+      expect(socket.connected).toBe(true);
+      expect(isInTripRoom(socket, trip.id)).toBe(false);
+
+      // A departed Member cannot subscribe again.
+      expect(
+        await sendTripEvent(socket, 'trip:subscribe', trip.id),
+      ).toEqual({ ok: false });
+    }
+  });
 
 	it('removes all sockets after real HTTP Trip deletion', async () => {
 		const owner = await createTestUser();

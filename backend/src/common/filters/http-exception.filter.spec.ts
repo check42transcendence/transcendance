@@ -7,6 +7,7 @@ import {
   UnauthorizedException,
   PayloadTooLargeException,
   UnsupportedMediaTypeException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import type { ArgumentsHost } from '@nestjs/common';
 import type { HttpAdapterHost } from '@nestjs/core';
@@ -156,6 +157,18 @@ describe('HttpExceptionFilter', () => {
     const body = errorBody('EMAIL_ALREADY_EXISTS', 'Email already exists');
     filter.catch(new ConflictException(body), host);
     expect(reply).toHaveBeenCalledWith(response, body, 409);
+  });
+
+  it('hides generic 503 exceptions as internal errors', () => {
+    const { filter, reply } = createFilter();
+
+    filter.catch(new ServiceUnavailableException(), host);
+
+    expect(reply).toHaveBeenCalledWith(
+      response,
+      errorBody('INTERNAL_ERROR', 'Internal server error'),
+      500,
+    );
   });
 
   it('hides unexpected internal exceptions', () => {

@@ -259,7 +259,21 @@ Duplicate Pending / already current Member:
 
 Accept creates Membership.
 
+Accept success:
+
+```text
+201 Created
+```
+
+Response body: `MembershipResult` (returned directly, without a wrapper).
+
 Reject creates no Membership.
+
+Reject success:
+
+```text
+204 No Content
+```
 
 ## 7. ItineraryDays
 

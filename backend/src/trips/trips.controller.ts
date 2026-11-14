@@ -70,6 +70,16 @@ export class TripsController {
     return this.tripsService.findDays(user.sub, tripId);
   }
 
+  // Allow a current Member to leave the Trip.
+  @Post(':tripId/leave')
+  @HttpCode(204)
+  leave(
+    @CurrentUser() user: { sub: string },
+    @Param('tripId', new ParseUUIDPipe()) tripId: string,
+  ) {
+    return this.tripsService.leaveTrip(user.sub, tripId);
+  }
+
   // Request trip deletion using the authenticated user's identity.
   @Delete(':tripId')
   @HttpCode(204)

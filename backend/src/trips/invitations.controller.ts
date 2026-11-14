@@ -3,12 +3,15 @@ import {
   Get,
   Inject,
   Query,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  HttpCode,
 } from '@nestjs/common';
-
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import { TripsService } from './trips.service.js';
 
-// Expose invitation queries for the authenticated recipient.
+// Expose invitation queries and decisions for the authenticated recipient.
 @Controller('invitations')
 export class InvitationsController {
   constructor(
@@ -23,5 +26,24 @@ export class InvitationsController {
     @Query('status') status?: string,
   ) {
     return this.tripsService.findPendingInvitations(user.sub, status);
+  }
+
+  // Accept an invitation addressed to the current user.
+  @Post(':invitationId/accept')
+  accept(
+    @CurrentUser() user: { sub: string },
+    @Param('invitationId', new ParseUUIDPipe()) invitationId: string,
+  ) {
+    return this.tripsService.acceptInvitation(user.sub, invitationId);
+  }
+
+  // Reject an invitation addressed to the current user.
+  @Post(':invitationId/reject')
+  @HttpCode(204)
+  reject(
+    @CurrentUser() user: { sub: string },
+    @Param('invitationId', new ParseUUIDPipe()) invitationId: string,
+  ) {
+    return this.tripsService.rejectInvitation(user.sub, invitationId);
   }
 }
