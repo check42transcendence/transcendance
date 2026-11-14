@@ -72,14 +72,23 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     if (exception instanceof HttpException) {
       const status = exception.getStatus();
+      const original: unknown = exception.getResponse();
 
-      // Never expose the body of a server-side exception.
+      // Preserve only this explicitly safe operational 503 response.
       if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
+        if (
+          status === HttpStatus.SERVICE_UNAVAILABLE &&
+          isApiErrorResponse(original) &&
+          original.error.code === 'TRIP_SOCKET_CLEANUP_FAILED'
+        ) {
+          httpAdapter.reply(response, original, status);
+          return;
+        }
+
+        // Never expose unexpected server-side exception details.
         this.replyInternalError(response);
         return;
       }
-
-      const original: unknown = exception.getResponse();
       // Never rewrite intentional feature or Auth machine codes.
       if (isApiErrorResponse(original)) {
         httpAdapter.reply(response, original, status);

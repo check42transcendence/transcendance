@@ -7,6 +7,7 @@ import {
   UnauthorizedException,
   PayloadTooLargeException,
   UnsupportedMediaTypeException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import type { ArgumentsHost } from '@nestjs/common';
 import type { HttpAdapterHost } from '@nestjs/core';
@@ -156,6 +157,18 @@ describe('HttpExceptionFilter', () => {
     const body = errorBody('EMAIL_ALREADY_EXISTS', 'Email already exists');
     filter.catch(new ConflictException(body), host);
     expect(reply).toHaveBeenCalledWith(response, body, 409);
+  });
+
+  it('preserves the explicit Trip Socket cleanup 503 response', () => {
+    const { filter, reply } = createFilter();
+    const body = errorBody(
+      'TRIP_SOCKET_CLEANUP_FAILED',
+      'Unable to remove active Trip subscriptions. Please retry.',
+    );
+
+    filter.catch(new ServiceUnavailableException(body), host);
+
+    expect(reply).toHaveBeenCalledWith(response, body, 503);
   });
 
   it('hides unexpected internal exceptions', () => {

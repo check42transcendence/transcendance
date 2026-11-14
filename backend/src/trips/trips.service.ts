@@ -5,6 +5,7 @@ import {
   NotFoundException,
   ForbiddenException,
   ConflictException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { CreateTripDto } from './dto/create-trip.dto.js';
 import { CreateInvitationDto } from './dto/create-invitation.dto.js';
@@ -879,10 +880,20 @@ export class TripsService {
           },
         });
       }
-    });
 
-    // Evict the departed member's existing Socket.IO subscriptions after commit.
-    await this.realtime.removeUserFromTrip(userId, tripId);
+      // Complete Socket eviction before allowing the database transaction to commit.
+      try {
+        await this.realtime.removeUserFromTrip(userId, tripId);
+      } catch {
+        throw new ServiceUnavailableException({
+          error: {
+            code: 'TRIP_SOCKET_CLEANUP_FAILED',
+            message: 'Unable to remove active Trip subscriptions. Please retry.',
+            details: {},
+          },
+        });
+      }
+    });
   }
 
   // Allow only the current owner to proceed with trip deletion.

@@ -9,12 +9,14 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { assertTestDatabaseUrl } from '../scripts/test-database-url.mjs';
 import { AppModule } from '../src/app.module.js';
 import { PrismaService } from '../src/database/prisma.service.js';
+import { RealtimeService } from '../src/realtime/realtime.service.js';
 import { TripsService } from '../src/trips/trips.service.js';
 
 // Exercise HTTP validation, identity, and responses against a real test database.
 describe('Trip HTTP integration', () => {
   let app: INestApplication<App>;
   let prisma: PrismaService;
+  let realtime: RealtimeService;
   let ownerCookie: string;
   let otherCookie: string;
 
@@ -45,6 +47,7 @@ describe('Trip HTTP integration', () => {
     await app.init();
 
     prisma = moduleFixture.get(PrismaService);
+    realtime = moduleFixture.get(RealtimeService);
     await prisma.user.createMany({
       data: [
         {
@@ -1030,6 +1033,78 @@ describe('Trip HTTP integration', () => {
       status: 'PENDING',
       respondedAt: null,
     });
+  });
+
+  // A failed Socket cleanup must roll back the Leave transaction.
+  it('preserves Membership and Votes when Socket cleanup fails', async () => {
+    const createResult = await app
+      .get(TripsService)
+      .create(ownerId, createInput);
+    const tripId = createResult.trip.id;
+
+    await prisma.tripMember.create({
+      data: {
+        tripId,
+        userId: otherUserId,
+        role: 'MEMBER',
+      },
+    });
+
+    const proposal = await prisma.proposal.create({
+      data: {
+        tripId,
+        createdBy: ownerId,
+        title: 'Socket cleanup failure proposal',
+      },
+    });
+
+    await prisma.proposalVote.create({
+      data: {
+        proposalId: proposal.id,
+        userId: otherUserId,
+        decision: 'AGREE',
+      },
+    });
+
+    const cleanupSpy = vi
+      .spyOn(realtime, 'removeUserFromTrip')
+      .mockRejectedValueOnce(new Error('Simulated Socket cleanup failure'));
+
+    try {
+      const response = await request(app.getHttpServer())
+        .post(`/api/trips/${tripId}/leave`)
+        .set('Cookie', otherCookie)
+        .expect(503);
+
+      expect(response.body.error.code).toBe(
+        'TRIP_SOCKET_CLEANUP_FAILED',
+      );
+      expect(cleanupSpy).toHaveBeenCalledWith(otherUserId, tripId);
+    } finally {
+      cleanupSpy.mockRestore();
+    }
+
+    // The transaction must roll back: Membership remains.
+    expect(
+      await prisma.tripMember.findUnique({
+        where: {
+          tripId_userId: {
+            tripId,
+            userId: otherUserId,
+          },
+        },
+      }),
+    ).not.toBeNull();
+
+    // The transaction must also preserve the Member's Vote.
+    expect(
+      await prisma.proposalVote.count({
+        where: {
+          proposalId: proposal.id,
+          userId: otherUserId,
+        },
+      }),
+    ).toBe(1);
   });
 
   // A Member can leave safely; the Owner cannot leave.
