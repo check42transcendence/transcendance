@@ -73,7 +73,7 @@ export class RealtimeService {
 
 	for (const socket of sockets) {
 		if (socket.data.userId == userId) {
-			socket.leave(room);
+			await Promise.resolve(socket.leave(room));
 			}	
 		}
 	}
